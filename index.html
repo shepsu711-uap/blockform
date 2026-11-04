@@ -70,6 +70,7 @@ input[type=range]{flex:1;accent-color:#74dfed;height:34px}
 .jrecmsg{font-size:12px;color:var(--muted);flex:1;line-height:1.35}.jrecmsg.live{color:#7fe3d0}.jrecmsg.warn{color:#f3c86b}.jrecmsg.err{color:#ff8a95}#jCPend{margin:0 2px 8px}#jCPend button{color:var(--muted);text-decoration:underline;background:none;border:0;padding:0;font-size:12px}
 .jaud{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 10px;border-radius:12px;background:#ffffff07;border:1px solid var(--line);margin-bottom:6px}.jaud span{font-size:11.5px;color:var(--muted);flex:1}.jaud audio,.jc audio{width:100%;height:36px;order:3}.jc audio{margin:6px 0 2px}.jaud button{color:var(--muted)}
 .jh button,.jh .jbtn{white-space:nowrap}.jvoice{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;margin:0 0 10px;border-radius:14px;border:1px solid #7fe3d055;background:linear-gradient(180deg,#7fe3d01c,#7fe3d00a);color:#bff3ea;font-size:15px;font-weight:600}.jvoice small{color:var(--muted);font-weight:400;font-size:11.5px}
+.libnote{font-size:12px;line-height:1.45;color:var(--muted);padding:10px 12px;margin:0 2px 10px;border-radius:12px;border:1px solid var(--line);background:#ffffff06}.libnote b{color:#cfe3f3;font-weight:600}.libnote .warn{color:#f3c86b}
 </style></head><body>
 <canvas id="view"></canvas><canvas id="ov"></canvas>
 <header class="glass"><div id="brand"><img id="logo" alt=""><span id="appName">BlockForm</span></div>
@@ -197,6 +198,48 @@ M.merge=(m0,vids)=>{if(vids.length<2)return null;const m=M.clone(m0),t=vids[0],c
  m.wires=m.wires.map(w=>w.map(x=>S.has(x)?t:x)).filter(w=>w[0]!==w[1]);const map=M.compact(m);return{mesh:m,verts:[map.get(t)].filter(x=>x!=null)}};
 M.toOBJ=objs=>{let s='# BlockForm OBJ\n',off=1;for(const o of objs){s+=`o ${o.name.replace(/\s+/g,'_')}\n`;o.mesh.verts.forEach(v=>s+=`v ${v[0].toFixed(5)} ${v[2].toFixed(5)} ${(-v[1]).toFixed(5)}\n`);o.mesh.faces.forEach(f=>s+='f '+f.map(i=>i+off).join(' ')+'\n');o.mesh.wires.forEach(w=>s+=`l ${w[0]+off} ${w[1]+off}\n`);off+=o.mesh.verts.length}return s};
 if(typeof module!=='undefined')module.exports=M;
+
+/* ---------- storage adapter ----------
+ Every save goes through BFStore. A backend ("adapter") implements:
+   { id, label, init():Promise, get(key):Promise<any>, set(key,value):Promise, del(key):Promise, keys():Promise<string[]> }
+ Default: DeviceAdapter = IndexedDB (durable, large quota) + small localStorage fallback.
+ Later: BFStore.use(SupabaseAdapter({url, anonKey, getToken, app:'blockform'})) shares one account across Anwar's apps.
+ BFStore keeps an in-memory cache so the UI can read synchronously; writes are awaited + verified. */
+const BFStore=(()=>{
+ const APPID='blockform',LS_BIG=['bf-scene','bf-lib','bf-tl'];
+ const DeviceAdapter=()=>{let dbp=null;
+  const db=()=>dbp||(dbp=new Promise((res,rej)=>{if(!window.indexedDB)return rej(new Error('IndexedDB unavailable'));const r=indexedDB.open('bf-store',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv',{keyPath:'k'});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);r.onblocked=()=>rej(new Error('IndexedDB blocked'))}));
+  const tx=(mode,fn)=>db().then(d=>new Promise((res,rej)=>{const t=d.transaction('kv',mode),s=t.objectStore('kv');let out;const q=fn(s);if(q)q.onsuccess=()=>out=q.result;t.oncomplete=()=>res(out);t.onerror=t.onabort=()=>rej(t.error||new Error('Write aborted'))}));
+  return{id:'device',label:'This device',init:()=>db(),
+   get:k=>tx('readonly',s=>s.get(k)).then(r=>r?r.v:undefined),
+   set:(k,v)=>tx('readwrite',s=>s.put({k,v,t:Date.now()})),
+   del:k=>tx('readwrite',s=>s.delete(k)),
+   keys:()=>tx('readonly',s=>s.getAllKeys())}};
+ /* Not active yet. Table: app_kv(user_id uuid, app text, key text, value jsonb, updated_at timestamptz, primary key(user_id,app,key)) + RLS user_id=auth.uid() */
+ const SupabaseAdapter=({url,anonKey,getToken,app=APPID})=>{const h=async()=>({apikey:anonKey,Authorization:'Bearer '+(await getToken()),'Content-Type':'application/json',Prefer:'resolution=merge-duplicates'});
+  const base=url+'/rest/v1/app_kv';const chk=async r=>{if(!r.ok)throw new Error('Cloud '+r.status);return r};
+  return{id:'supabase',label:'Cloud',init:async()=>{},
+   get:async k=>{const r=await chk(await fetch(`${base}?app=eq.${app}&key=eq.${encodeURIComponent(k)}&select=value`,{headers:await h()}));const j=await r.json();return j[0]?j[0].value:undefined},
+   set:async(k,v)=>{await chk(await fetch(base,{method:'POST',headers:await h(),body:JSON.stringify({app,key:k,value:v,updated_at:new Date().toISOString()})}))},
+   del:async k=>{await chk(await fetch(`${base}?app=eq.${app}&key=eq.${encodeURIComponent(k)}`,{method:'DELETE',headers:await h()}))},
+   keys:async()=>{const r=await chk(await fetch(`${base}?app=eq.${app}&select=key`,{headers:await h()}));return(await r.json()).map(x=>x.key)}}};
+ const cache=new Map();let A=DeviceAdapter(),ready=false,mode='idb',lastError=null,persisted=null;const q={};
+ const lsGet=k=>{try{const s=localStorage.getItem(k);return s==null?undefined:JSON.parse(s)}catch(e){return undefined}};
+ async function init(){
+  try{await A.init();for(const k of await A.keys())cache.set(k,await A.get(k));
+   /* migrate old localStorage saves (they crowded Safari's ~5 MB localStorage quota) */
+   for(const k of LS_BIG){const v=lsGet(k);if(v!==undefined&&!cache.has(k)){await A.set(k,v);cache.set(k,v)}if(v!==undefined&&(await A.get(k))!==undefined)try{localStorage.removeItem(k)}catch(e){}}
+  }catch(e){mode='local';lastError=e;for(const k of LS_BIG){const v=lsGet(k);if(v!==undefined)cache.set(k,v)}}
+  try{if(navigator.storage&&navigator.storage.persist)persisted=await navigator.storage.persisted()||await navigator.storage.persist()}catch(e){}
+  ready=true;return api}
+ const get=k=>cache.get(k);
+ /* writes are serialised per key; resolves true when durably stored (read back) */
+ function set(k,v){if(!ready)return Promise.resolve(false);cache.set(k,v);const run=async()=>{try{if(mode==='local'){localStorage.setItem(k,JSON.stringify(v))}else{await A.set(k,v);if((await A.get(k))===undefined)throw new Error('Save did not stick')}lastError=null;return true}catch(e){lastError=e;console.warn('BFStore save failed',k,e);return false}};
+  return q[k]=(q[k]||Promise.resolve()).then(run,run)}
+ async function del(k){cache.delete(k);try{mode==='local'?localStorage.removeItem(k):await A.del(k)}catch(e){lastError=e}}
+ function env(){const standalone=!!(navigator.standalone||matchMedia('(display-mode: standalone)').matches);return{standalone,file:location.protocol==='file:',persisted,mode,backend:A.label,lastError:lastError&&String(lastError.message||lastError)}}
+ const api={init,get,set,del,env,flush:()=>Promise.all(Object.values(q)),use:async ad=>{A=ad;mode='idb';await ad.init();for(const k of await ad.keys())cache.set(k,await ad.get(k))},DeviceAdapter,SupabaseAdapter,get ready(){return ready}};
+ return api})();
 
 /* ---------- BlockForm app ---------- */
 const $=id=>document.getElementById(id);
@@ -376,21 +419,26 @@ function sheet(kind){const s=$('sheet');s.innerHTML='';const h=t=>{const e=docum
  else{h('ADD MESH');prims();h('PROJECT');mk('list',[['m-save','Save to library',saveLib],['m-lib','Open library…',()=>sheet('lib'),libList().length+' saved'],['m-new','New scene',()=>{push();S.objs=[newObj('Cube 1',M.cube())];S.osel=new Set([0]);S.active=0;S.mode='object';closeSheet();changed()}],['m-obj','Export OBJ',exportOBJ],['m-tl','Timelapse',()=>{closeSheet();openTL()},TLF.length+' steps'],['m-tlclear','Clear timelapse history',()=>{TLF.length=0;tlLast='';tlRecord();closeSheet();toast('Timelapse reset')}],['m-name','Rename app title',()=>{const n=prompt('App title',APP.name);if(n){APP.name=n.slice(0,24);localStorage.setItem('bf-name',APP.name);document.title=APP.name;ui()}},APP.name]]);
   h('VIEW');mk('list',[['v-front','Front',()=>{snapView(new THREE.Vector3(0,-1,0));closeSheet()}],['v-top','Top',()=>{snapView(new THREE.Vector3(0,0,1));closeSheet()}],['v-persp','Reset perspective',()=>{orbit.th=-Math.PI/2+.75;orbit.ph=.5;frame();closeSheet()}]])}
  if(kind==='lib'){s.innerHTML='';h('LIBRARY');const L=libList();if(!L.length){const p=document.createElement('p');p.style.cssText='color:var(--muted);font-size:13px;padding:6px';p.textContent='Nothing saved yet.';s.append(p)}
-  mk('list',L.map((it,i)=>['lib-'+i,it.name,()=>{push();S.objs=JSON.parse(it.scene);S.active=0;S.osel=new Set([0]);S.mode='object';uid=Math.max(1,...S.objs.map(o=>o.id+1));closeSheet();changed();frame();toast('Opened '+it.name)},new Date(it.date).toLocaleDateString()]))}
+  mk('list',L.map((it,i)=>['lib-'+i,it.name,()=>{push();S.objs=JSON.parse(it.scene);S.active=0;S.osel=new Set([0]);S.mode='object';uid=Math.max(1,...S.objs.map(o=>o.id+1));closeSheet();changed();frame();toast('Opened '+it.name)},new Date(it.date).toLocaleDateString()]));const nt=document.createElement('div');nt.id='libNote';nt.className='libnote';nt.innerHTML=storageNote();s.querySelector('h2').after(nt)}
  $('sheetWrap').hidden=false}
 /* ---------- persistence ---------- */
-function autosave(){try{localStorage.setItem('bf-scene',JSON.stringify({objs:S.objs,orbit:{t:orbit.t.toArray(),r:orbit.r,th:orbit.th,ph:orbit.ph}}))}catch(e){}}
-function libList(){try{return JSON.parse(localStorage.getItem('bf-lib')||'[]')}catch(e){return[]}}
-function saveLib(){const n=prompt('Name this model','Model '+(libList().length+1));if(n===null)return;const L=libList();L.unshift({name:n||'Untitled',date:Date.now(),scene:JSON.stringify(S.objs)});localStorage.setItem('bf-lib',JSON.stringify(L.slice(0,40)));closeSheet();toast('Saved “'+(n||'Untitled')+'”')}
+function storageNote(){const e=BFStore.env();let t=`<b>Where saves live:</b> ${e.mode==='idb'?'on this device (IndexedDB)':'on this device (fallback storage)'}${e.standalone?' · Home Screen app':' · Safari'}${e.persisted?' · protected from auto-cleanup':''}.<br>On iPhone, the <b>Home Screen app and Safari keep separate storage</b> — a model saved in one won’t show up in the other. Always open BlockForm the same way.`;
+ if(e.file)t+='<br><span class="warn">Opened as a local file. iOS may wipe saves for files previewed from Files/Quick Look — open it in Safari or from the Home Screen.</span>';
+ if(e.lastError)t+='<br><span class="warn">Last save failed: '+e.lastError+'</span>';return t}
+let asT=0;const sceneJSON=()=>JSON.stringify({objs:S.objs,orbit:{t:orbit.t.toArray(),r:orbit.r,th:orbit.th,ph:orbit.ph},saved:Date.now()});
+function autosave(now){clearTimeout(asT);if(!BFStore.ready)return;if(now===true)return BFStore.set('bf-scene',sceneJSON());asT=setTimeout(()=>BFStore.set('bf-scene',sceneJSON()),150)}
+addEventListener('pagehide',()=>autosave(true));document.addEventListener('visibilitychange',()=>{if(document.hidden)autosave(true)});
+function libList(){const L=BFStore.get('bf-lib');return Array.isArray(L)?L:[]}
+function saveLib(){const n=prompt('Name this model','Model '+(libList().length+1));if(n===null)return;const L=libList();L.unshift({name:n||'Untitled',date:Date.now(),scene:JSON.stringify(S.objs)});closeSheet();BFStore.set('bf-lib',L.slice(0,40)).then(ok=>toast(ok?'Saved “'+(n||'Untitled')+'”':'⚠️ Couldn’t save: '+(BFStore.env().lastError||'storage error')));autosave(true)}
 function exportOBJ(){const blob=new Blob([M.toOBJ(S.objs)],{type:'text/plain'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(APP.name||'model').replace(/\W+/g,'_')+'.obj';document.body.append(a);a.click();a.remove();closeSheet();toast('OBJ exported')}
 /* ---------- timelapse ---------- */
-const TLF=(()=>{try{const d=JSON.parse(localStorage.getItem('bf-tl')||'[]');return Array.isArray(d)?d:[]}catch(e){return[]}})();
+const TLF=[];/* filled from BFStore at boot */
 const TL_MAX=240,TL_BYTES=1.8e6;let tlLast=TLF.length?JSON.stringify(TLF[TLF.length-1]):'',tlSaveT=0;
 const r4=x=>Math.round(x*1e4)/1e4;
 function tlRecord(){const fr=S.objs.map(o=>({v:o.mesh.verts.map(p=>p.map(r4)),f:o.mesh.faces.map(f=>f.slice())}));const s=JSON.stringify(fr);if(s===tlLast)return false;tlLast=s;TLF.push(fr);
  if(TLF.length>TL_MAX)tlThin();clearTimeout(tlSaveT);tlSaveT=setTimeout(tlPersist,250);return true}
 function tlThin(){/* drop every other frame in the older half, keep first + recent detail */const h=TLF.length>>1;for(let i=h-1;i>=1;i-=2)TLF.splice(i,1)}
-function tlPersist(){let s=JSON.stringify(TLF);while(s.length>TL_BYTES&&TLF.length>4){tlThin();s=JSON.stringify(TLF)}try{localStorage.setItem('bf-tl',s)}catch(e){tlThin();try{localStorage.setItem('bf-tl',JSON.stringify(TLF))}catch(_){}}}
+function tlPersist(){let s=JSON.stringify(TLF);while(s.length>TL_BYTES&&TLF.length>4){tlThin();s=JSON.stringify(TLF)}BFStore.set('bf-tl',s)}
 let TL=null;const TW=720;let THh=1280;
 function tlInit(){if(TL)return TL;const gl=document.createElement('canvas');gl.width=TW;gl.height=THh;const r=new THREE.WebGLRenderer({canvas:gl,antialias:true,preserveDrawingBuffer:true});r.setClearColor(0x070d16);
  const sc=new THREE.Scene();sc.fog=new THREE.Fog(0x070d16,30,80);sc.add(new THREE.HemisphereLight(0xdfe8ef,0x1b232c,.85));const k=new THREE.DirectionalLight(0xffffff,.75);k.position.set(4,-6,9);sc.add(k);const rm=new THREE.DirectionalLight(0x9fdcea,.25);rm.position.set(-6,7,-3);sc.add(rm);
@@ -454,10 +502,12 @@ async function tlExport(){if(!TL||!TLF.length)return;const btn=$('tlExp'),old=bt
 $('tlExp').onclick=tlExport;
 
 /* ---------- boot ---------- */
-(function boot(){document.title=APP.name;$('logo').src=document.querySelector('link[rel=apple-touch-icon]').href;let d=null;try{d=JSON.parse(localStorage.getItem('bf-scene'))}catch(e){}
- if(d&&Array.isArray(d.objs)&&!location.search.includes('fresh')){S.objs=d.objs;uid=Math.max(1,...S.objs.map(o=>o.id+1));if(d.orbit){orbit.t.fromArray(d.orbit.t);orbit.r=d.orbit.r;orbit.th=d.orbit.th;orbit.ph=d.orbit.ph}}else S.objs=[newObj('Cube 1',M.cube())];
- S.osel=new Set(S.objs.length?[0]:[]);resize();changed(false);ui()})();
-window.BF={TLF,tlRecord,openTL,closeTL,tlShow,tlExport,tlSetAuto,tlSetPlay,pickVideoType,get TL(){return TL},S,M,H,cam,gCam,orbit,runOp,setMode,setSM,selectAll,undo,redo,addPrim,tapSelect,proj,pick,snapView,draw,render,rebuild,ui,toOBJ:()=>M.toOBJ(S.objs),check:()=>M.check(act().mesh),gizmoRect,frame};
+(function boot(){document.title=APP.name;$('logo').src=document.querySelector('link[rel=apple-touch-icon]').href;S.objs=[newObj('Cube 1',M.cube())];S.osel=new Set([0]);resize();changed(false);ui();
+ BFStore.init().then(()=>{const fresh=new URLSearchParams(location.search).has('fresh');let d=null;try{const v=BFStore.get('bf-scene');d=typeof v==='string'?JSON.parse(v):v}catch(e){}
+ try{const t=BFStore.get('bf-tl');const a=typeof t==='string'?JSON.parse(t):t;if(Array.isArray(a)){TLF.length=0;TLF.push(...a);tlLast=TLF.length?JSON.stringify(TLF[TLF.length-1]):''}}catch(e){}
+ if(d&&Array.isArray(d.objs)&&d.objs.length&&!fresh){S.objs=d.objs;uid=Math.max(1,...S.objs.map(o=>o.id+1));if(d.orbit){orbit.t.fromArray(d.orbit.t);orbit.r=d.orbit.r;orbit.th=d.orbit.th;orbit.ph=d.orbit.ph}}
+ S.osel=new Set(S.objs.length?[0]:[]);S.active=0;changed(false);ui();window.BF_READY=true})})();
+window.BF={store:BFStore,libList,saveLib,storageNote,TLF,tlRecord,openTL,closeTL,tlShow,tlExport,tlSetAuto,tlSetPlay,pickVideoType,get TL(){return TL},S,M,H,cam,gCam,orbit,runOp,setMode,setSM,selectAll,undo,redo,addPrim,tapSelect,proj,pick,snapView,draw,render,rebuild,ui,toOBJ:()=>M.toOBJ(S.objs),check:()=>M.check(act().mesh),gizmoRect,frame};
 
 /* ---------- journal ---------- */
 const JT={note:'Note',how:'How it should work',bug:'Bug'};
