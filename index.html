@@ -42,18 +42,38 @@ input[type=range]{flex:1;accent-color:#74dfed;height:34px}
 #tlSpd{display:flex;gap:2px;flex:1}#tlSpd button{flex:1;height:38px;border-radius:12px;font-size:12px;color:var(--muted)}#tlSpd button.on{background:#74dfed22;color:var(--blue)}
 #tlExp{height:38px;padding:0 14px;border-radius:12px;background:#edf2f5;color:#070d16;font-weight:650;font-size:13px}#tlExp:disabled{opacity:.7}#tlHint{margin:4px 2px 0;font-size:10.5px;color:var(--muted);text-align:center}
 #intro{position:fixed;inset:0;z-index:50;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;transition:opacity .6s ease,filter .6s ease}
-#intro.out{opacity:0;filter:blur(6px);pointer-events:none}#intro svg{width:150px;height:150px;overflow:visible}
-#intro .pl{opacity:0;animation:plIn .9s cubic-bezier(.2,1.25,.4,1) forwards}#intro .pz{--fx:0px;--fy:-150px;animation-delay:.15s}#intro .px{--fx:-140px;--fy:82px;animation-delay:.35s}#intro .py{--fx:140px;--fy:82px;animation-delay:.55s}
-@keyframes plIn{0%{opacity:0;transform:translate(var(--fx),var(--fy)) scale(.6)}35%{opacity:1}100%{opacity:1;transform:none}}
-#intro .pg{animation:pgOut .45s ease 1.3s forwards}@keyframes pgOut{to{opacity:0}}#intro .mk{opacity:0;animation:mkIn .45s ease 1.3s forwards}@keyframes mkIn{to{opacity:1}}
-#intro .ed{fill:none;stroke:#000;stroke-width:3;opacity:0;animation:mkIn .2s ease 1.15s forwards}
+#intro.out{opacity:0;filter:blur(6px);pointer-events:none}#intro svg{width:150px;height:171px;overflow:visible}
+#intro .pl{fill:#e3e3e3;stroke:#e3e3e3;stroke-width:.8;stroke-linejoin:round;opacity:0;animation:plIn .8s cubic-bezier(.2,1.2,.4,1) forwards}
+#intro .pz{--fx:0px;--fy:-620px;animation-delay:.1s}#intro .px{--fx:-520px;--fy:300px;animation-delay:.38s}#intro .py{--fx:520px;--fy:300px;animation-delay:.66s}
+#intro .pn{--fx:70px;--fy:-40px;animation:nIn .5s cubic-bezier(.3,1.3,.5,1) 1.15s forwards}
+@keyframes plIn{0%{opacity:0;transform:translate(var(--fx),var(--fy))}30%{opacity:1}100%{opacity:1;transform:none}}
+@keyframes nIn{0%{opacity:0;transform:translate(var(--fx),var(--fy))}100%{opacity:1;transform:none}}
+#intro .cube{transform-origin:192px 219px;animation:settle .35s ease-out 1.5s}@keyframes settle{0%{transform:scale(1)}40%{transform:scale(1.035)}100%{transform:scale(1)}}
 #introWord{display:flex;font:650 34px/1 -apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif;letter-spacing:2px;color:#fff}
 #introWord span{opacity:0;filter:blur(14px);transform:translateY(6px) scale(1.15);animation:ltIn .55s ease forwards}@keyframes ltIn{to{opacity:1;filter:blur(0);transform:none}}
 @media (prefers-reduced-motion:reduce){#intro *{animation:none!important;opacity:1!important;filter:none!important;transform:none!important}#intro{transition:opacity .3s}}
+#jWrap{position:fixed;inset:0;z-index:15;background:#0000;transition:background .25s}#jWrap.open{background:#0008}
+#jPanel{position:absolute;left:0;right:0;bottom:0;height:86%;border-radius:22px 22px 0 0;padding:12px 14px calc(16px + var(--safe));overflow-y:auto;transform:translateY(100%);transition:transform .26s cubic-bezier(.2,.8,.3,1);background:#0d141ef2}#jWrap.open #jPanel{transform:none}
+#jPanel .jh{display:flex;align-items:center;gap:4px;position:sticky;top:-12px;margin:-12px -14px 8px;padding:10px 10px 6px 16px;background:#0d141ef2;z-index:1}#jPanel .jh b{font-size:12px;letter-spacing:1.6px}.jsp{flex:1}
+#jPanel button,.jbtn{font-size:13px;padding:0 10px;color:var(--ink)}.jbtn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;border-radius:12px;background:#ffffff0d;cursor:pointer}
+.jpri{background:#74dfed22!important;color:var(--blue)!important}.jdanger{color:#ff8f8f!important}
+#jPanel input,#jPanel textarea{width:100%;box-sizing:border-box;background:#ffffff0a;border:1px solid var(--line);border-radius:12px;color:var(--ink);font:inherit;font-size:16px;padding:11px 12px;margin:4px 0}#jPanel textarea{resize:vertical;min-height:120px;line-height:1.4}
+#jTitle{font-weight:650;font-size:18px!important}.jdate{display:block;color:var(--muted);font-size:11px;margin:0 2px 6px}
+.jchips{display:flex;gap:6px;overflow-x:auto;margin:6px 0 10px;scrollbar-width:none}.jchips button{flex:none;min-height:34px!important;border-radius:17px!important;border:1px solid var(--line)!important;font-size:12px!important;color:var(--muted)!important}.jchips button.on{background:#74dfed22!important;color:var(--blue)!important;border-color:#74dfed55!important}
+.jitem{display:block;width:100%;text-align:left;padding:12px!important;margin:0 0 8px;border:1px solid var(--line)!important;border-radius:14px!important;background:#ffffff07!important}.jitem b{display:block;font-size:15px;margin:6px 0 2px}.jitem small{color:var(--muted);font-size:11px}.jitem p{margin:6px 0 0;color:#c9d3da;font-size:13px;white-space:pre-wrap;overflow:hidden;max-height:3.9em}
+.jtag{font-size:10px;letter-spacing:.8px;text-transform:uppercase;padding:3px 8px;border-radius:9px;background:#91a0aa22;color:#c9d3da}.jtag.t-how{background:#74dfed22;color:var(--blue)}.jtag.t-bug{background:#ff8f8f22;color:#ff9d9d}
+.jempty{color:var(--muted);text-align:center;font-size:13px;padding:30px 0}.jrow{display:flex;gap:8px;align-items:center;margin:6px 0}.jrow input{flex:1}
+.jimgs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:6px 0}.jim{position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;border:1px solid var(--line)}.jim img{width:100%;height:100%;object-fit:cover;display:block}.jim button{position:absolute;top:2px;right:2px;min-width:30px!important;min-height:30px!important;padding:0!important;background:#000a!important;border-radius:15px!important}
+#jPanel h4{font-size:11px;letter-spacing:1.4px;color:var(--muted);margin:16px 2px 6px;font-weight:600}.jc{position:relative;padding:10px 40px 8px 12px;border-radius:12px;background:#ffffff07;border:1px solid var(--line);margin-bottom:6px}.jc p{margin:0;font-size:14px;white-space:pre-wrap}.jc small{color:var(--muted);font-size:10.5px}.jc button{position:absolute;top:4px;right:2px;color:var(--muted)!important}
+#jView{position:fixed;inset:0;z-index:30;background:#000e;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}#jView img{max-width:100%;max-height:88%;object-fit:contain}#jView span{color:var(--muted);font-size:12px}
+.jmic.rec{background:#ff4d5e22!important;border-color:#ff4d5e88!important;color:#ff8a95!important;animation:jpulse 1.2s infinite}@keyframes jpulse{50%{box-shadow:0 0 0 6px #ff4d5e22}}.jmic:disabled{opacity:.4}
+.jrecmsg{font-size:12px;color:var(--muted);flex:1;line-height:1.35}.jrecmsg.live{color:#7fe3d0}.jrecmsg.warn{color:#f3c86b}.jrecmsg.err{color:#ff8a95}#jCPend{margin:0 2px 8px}#jCPend button{color:var(--muted);text-decoration:underline;background:none;border:0;padding:0;font-size:12px}
+.jaud{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 10px;border-radius:12px;background:#ffffff07;border:1px solid var(--line);margin-bottom:6px}.jaud span{font-size:11.5px;color:var(--muted);flex:1}.jaud audio,.jc audio{width:100%;height:36px;order:3}.jc audio{margin:6px 0 2px}.jaud button{color:var(--muted)}
+.jh button,.jh .jbtn{white-space:nowrap}.jvoice{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;margin:0 0 10px;border-radius:14px;border:1px solid #7fe3d055;background:linear-gradient(180deg,#7fe3d01c,#7fe3d00a);color:#bff3ea;font-size:15px;font-weight:600}.jvoice small{color:var(--muted);font-weight:400;font-size:11.5px}
 </style></head><body>
 <canvas id="view"></canvas><canvas id="ov"></canvas>
 <header class="glass"><div id="brand"><img id="logo" alt=""><span id="appName">BlockForm</span></div>
-<button id="tlBtn" aria-label="Timelapse"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/></svg></button><button id="undo" aria-label="Undo"><svg class="i" viewBox="0 0 24 24"><path d="M9 6 4 11l5 5M4 11h10a6 6 0 0 1 6 6"/></svg></button>
+<button id="jBtn" aria-label="Journal"><svg class="i" viewBox="0 0 24 24"><path d="M6 3h11a2 2 0 0 1 2 2v16H7a2 2 0 0 1-2-2V4a1 1 0 0 1 1-1Z"/><path d="M9 8h6M9 12h6M5 18a2 2 0 0 1 2-2h12"/></svg></button><button id="tlBtn" aria-label="Timelapse"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/></svg></button><button id="undo" aria-label="Undo"><svg class="i" viewBox="0 0 24 24"><path d="M9 6 4 11l5 5M4 11h10a6 6 0 0 1 6 6"/></svg></button>
 <button id="redo" aria-label="Redo"><svg class="i" viewBox="0 0 24 24"><path d="m15 6 5 5-5 5m5-5H10a6 6 0 0 0-6 6"/></svg></button>
 <button id="menuBtn" aria-label="Menu"><svg class="i" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button></header>
 <div id="modebar"><div class="seg glass" id="modeSeg"><button data-mode="object">Object</button><button data-mode="edit">Edit</button></div>
@@ -68,13 +88,10 @@ input[type=range]{flex:1;accent-color:#74dfed;height:34px}
 <div id="tlBar" class="glass"><div class="row"><button id="tlPlay" aria-label="Play"></button><input id="tlScrub" type="range" min="0" max="0" step="0.01" value="0"></div>
 <div class="row"><div class="seg" id="tlSpd"><button data-s="0.5">0.5×</button><button data-s="1" class="on">1×</button><button data-s="2">2×</button><button data-s="4">4×</button></div><button id="tlExp">Export Video</button></div>
 <p id="tlHint">Drag to orbit · pinch to zoom · two fingers to pan · double-tap for auto orbit</p></div></div>
-<div id="intro" aria-hidden="true"><svg viewBox="0 0 150 150"><g class="pg"><g transform="translate(75 75)">
-<polygon class="pl pz" fill="#fff" points="0,-70 60.6,-35 0,0 -60.6,-35"/>
-<polygon class="pl px" fill="#d6d6d6" points="-60.6,-35 0,0 0,70 -60.6,35"/>
-<polygon class="pl py" fill="#9a9a9a" points="0,0 60.6,-35 60.6,35 0,70"/>
-<path class="ed" d="M-60.6,-35 0,0 60.6,-35M0,0V70"/></g></g>
-<image class="mk" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAAEsCAYAAAB5fY51AAALOklEQVR4nO3dbW/jNhaAUc2i//8vZz9MhXo8jmNJJHVfzgGKLYpumtjU40tKaX99fX1tMNjXtm2/7v4mqOd/d38DlPL17x/bw//CMP/c/Q1Qwndx2v+6aYshBIsrPp2ihIshBIszzm73hItLnGFxxOMZ1dWvA4eZsPjEjMCYtjhMsHhnxSQkXHzMlpDvrN62jdpuUphg8ezucIgW37IlZBcpFLaJvCRYRArVM+HiD4LVV+RQPRMutm0TrI4yheqZcDXn0L2XzLF6VOXn4CATVg8VL3DTVkOCVVvFUD0TrkYEq6YOoXomXA04w6rl7oc+I+j+85dmwqrBRfon01ZRJqz8xOp7Js5iTFh5uRA/Z+IqwoSVj6nhPK9bciasPFxsY5i2EhOs+IRqDuFKyJYwNrGazxY7ERNWTC6g9UxcCZiwYvFpfz+vf2AmrBhcJLGYtoISrHsJVWzCFYwt4X3EKg9b9SBMWOtZ+HmZuG5mwlrHp3Qd3sebmLDms7hrMm3dQLDmEaoehGshW8I5xKofW/4FTFhjWbCYuCYyYY3h05Vn1sMEJqxrLEreMW0NJljnCBVHCNcgtoTHiRVnOTq4yIT1OQuNUUxcJ5mwfuZTkVmsq4NMWN+zmFjBtHWACetvZycqC44rTPIfMGH96Wqo9j+38DjLxPWGYP02eqL6dfJrwk64XugerLNR+WQRmbYYQbgedA3WzFB99/8RLq742kSr5aH72e3f1cXSfrFxWfuD+U4TVoQ7f6YtRmi7TewQrAih+u7rCxdXtAtX5WBFDNV3/zzh4oo251sVz7AyPvjZYrExVYvzrWoTVrZQPTJtMULpbWKVYGUO1TPhYoSS4coerEqheuZpeUYoFa7MZ1hHL+YRz1KtlvF7JqYSH34ZJ6zKU9V3bBMZIf20lSlYHUP1zDaREdKGK0OwhOpPpi1GSReu6ME6c07VhXAxSppwRT10P/oQXOfD6a4/N+OF//CLNmHZ/p1j2mKU0NNWpGDZ/l0nXIwSMlwRgiVU4wkXo4QK153BEqr5hItRQoTrjmAJ1Xqe32KUW8O1+i6hO3/38Xoy0i0fgKsmLFNVHLaJjLJ82podLKGKS7gYZVm4ZgVLqPJwvsUo08M1I1hHz6m4n2mLkaaFa2SwhCo/4WKk4f9xjNWPNQhVDsJFSCuDJVb5CBdnTbneVwRLqPITLo5IdehOXcLFO9OHkxVPulvc9ZiaebTstyhWP+luoddh2mL59XzH7xJa4LX4HcWeWvzy80606hGuHm59nyP8+7As8lpsFWsKcZ1G+I9Q2CbWZOKqI8z7GCFYO9GqSbjyCvfeRXsOyzaxLlvFPMJef5EmrEe2iXWF+9TmD6Hfm6jB2olWXcIVS4r3I3qwts20VV34i6S4FKHaZQjWTrjqSnXRFJLuNc8UrJ1o1SVca6R9naPdJfyUu4m1uaM4R/rrJWuwdsJVm3CNUeb6yLglfMX5Vm1ptzABlHrdqgRrJ1q1CdfnSr5W1YK1baatDkpejAOVfW2yn2G943yrPmdcfyq/1itOWM8s5vq6T1xtfv4Owdo228SV7nyd21y4/+r285beEr5imzhPpA+EDlvFlmu4W7B2wjVO5ChUDFfrNds1WLuvrfkCuCBTBCqEyzrd+pxhveN867isr1fWM5+M3/MU3SesR7aJP8saqmdZJi5r8Ylg/c028W/RL+yzoobL+vuGYL1m2vot2oU8S6RwdV9zbwnWe53DFeHiXe3OcHVcY4cJ1mc6hatjqJ6tDFeHNTWMYB1TOVxC9beZ4aq4hqbzWMM5lS5uj3X8bPTjEGJ1kgnrvOzTlkgdd3XiyrpWwhCs6zKGS6yuORquTGsjNMEaJ0O4hGqsT8IVeT2kI1jjRXzwVKjmehWuaGugBMGaI8q0JVRr3f1+l+cu4Vx33oETK8oxYa2xcuISKsoyYa01Myaep6I8E9Z6o6ctkaINE9Z9RkxEYkUrJqz7nZm4hIqWBCuOT8IlVLRmSxjPqyg5UIdNsIBEBAtIQ7CANAQLmGno2au7hMAMU24SCRYw0tS72baEwCjTH70xYQFXLXtGULCAs5Y/zCxYwFG3/daFMyzgiFt/RcyEBXwixO+yChbwTohQ7QQLeCVUqHbOsIBnIWO1bSYs4D9hQ7UTLCB8qHaCBX2lCdXOGRb0lC5W22bCgm5ShmonWNBD6lDtBAtqKxGqnWBBTaVCtXPoDvWUjNW2mbCgkrKh2gkW5Fc+VDvBgrzahGrnDAtyaherbTNhQTYtQ7UTLMihdah2ggWxCdUDwYKYhOoFwYJYhOoNdwkhDrH6gQkL7idUHxIsuI9QHSRYsJ5QneQMC9YSqwtMWLCGUA0gWDCXUA0kWDCHUE0gWDCWUE0kWIz06+5v4EZCtYC7hIwiVkxnwuIqoWIZweIsoWI5weIooeI2zrA4Qqy4lQmLTwgVIQgW7wgVoQgWrwgVIQkWj4SK0ASLbRMqknCXELEiDRNWX0JFOoLVj1CRlmD1IVSkJ1j1dQ7VtolVKYJVW+dYCVVBglWTUFGSYNUiVJQmWDUIFS0IVm6dQ7VtYtWOYOXVOVZC1ZRg5SNUtCVYeQgV7QlWDl1jJVT8wb+tgajEir+YsIhGqPiWYBGFUPEjweJuQsXHBIu7CBWHOXTnDmLFKSYsVhIqLhEsVhAqhhAsZhIqhhIsZhAqpnDoDqQhWEAaggWkIVhAGoIFpCFYQBqCBaQhWEAaggWkIVhAGoIFpCFYQBqCBaQhWEAaggWkIVhAGoIFpCFYQBqCBaQhWEAaggWkIVhAGoIFpCFYQBqCBaQhWEAaI4P1a+DXAvL7tQ3uwugJa/g3CKQ0pQP/zPii23/f7Nekrw/ENHVgmX2GZdqCHpbsrmZNWI9MW1DX0qFk5V1C51tQy/Lr+Y7HGkQLcrtt+FixJXzFNhHyuX3YuCtYO+GC+G4P1S7Kk+7OtyCmUNdllGDtQr040FjIIeLuLeErtolwn3CRehRtwnoUsvBQWPjrLXKwduFfREguzXAQcUv4im0ijJciUo+yBGsnXHBdulDtMmwJX0kzwkIwqa+brMHapX7xYaESH/LZtoSv2CbC99JH6lGFYO2EC/5TKlS77FvCV0q+UXBA2Wug0oT1yLRFR2VDtasarJ1w0UH5UO0qbglfafOG0kqJO39HdAnWtjV8cymt5VquviV8xTaRzFqGatcxWDvhIpPWodp12hJ+x0IgMkcZDwTrN4uCiKzJJ523hK/YJhKBUH1DsF4TLu4gVD+wJXzPAmIFRxIfEqyfWUzMZG0dYEv4OdtERhKqEwTrOOHiCqG6wJbwPAuPIxwtDGDCusa0xU9EaiAT1hg+PXnFmhjMhDWWiYttE6ppTFhzWLA9mbQnE6x5LN5evNcLCNZ8Z8JlS5mHD6aFBGudowtbtGITqhs4dF/vyMH8/ve4MOLwXtzIhHWfo9OWieteJqoABOtetok5CFUQtoQx2CbG5DUORrBiEa4YvKZBCVZMwnUPr2FwzrBiczC/jlglIFjxOZify92/RGwJ87BNHMtrk5Bg5SNc13gtErMlzOvIVsb51m9ilZwJKz8T18+6/bxlmbDqcDD/NwfqxZiwajFt/VbxZ2ITrKq6hqvCz8AbtoS1dTqYF6sGBKuHyk/MO6dqRLD6qPbEvFA15Ayrn+znW5G+FxYzYfWV8XxLrJozYZFh4hIqtm0TLP4TMVxCxR9sCXkW4Y6iA3VeMmHxypFp6/HvuxoZkeItweKds+E6+8+Bt2wJ+cTMLZpY8TETFkccnbg++VrwMcHijCvhEipOsyXkiiPxceePy0xYXPXTtCVSDGPCYpRXE5RYMdT/Ac9rweFiyLfzAAAAAElFTkSuQmCC" x="0" y="0" width="150" height="150"/></svg><div id="introWord" aria-label="BlockForm"><span style="animation-delay:1.55s">B</span><span style="animation-delay:1.66s">l</span><span style="animation-delay:1.77s">o</span><span style="animation-delay:1.88s">c</span><span style="animation-delay:1.99s">k</span><span style="animation-delay:2.10s">F</span><span style="animation-delay:2.21s">o</span><span style="animation-delay:2.32s">r</span><span style="animation-delay:2.43s">m</span></div></div>
-<script>(function(){const e=document.getElementById("intro"),q=location.search,rm=matchMedia("(prefers-reduced-motion: reduce)").matches;if(/nointro/.test(q)){e.remove();return}let done=false;const end=()=>{if(done)return;done=true;e.classList.add("out");setTimeout(()=>e.remove(),650)};e.addEventListener("pointerdown",end);setTimeout(end,rm?900:3100)})()</script>
+<div id="intro" aria-hidden="true"><svg id="introMark" viewBox="0 0 385 438"><g class="cube"><path class="pl pz" d="M2,106L2,107L7,110L10,110L25,101L65,80L67,78L85,69L87,67L93,64L95,64L143,93L166,105L168,107L233,140L235,142L241,144L243,146L249,148L253,151L275,162L281,164L283,166L298,158L327,140L332,138L337,134L359,122L383,107L356,93L354,91L329,78L320,72L293,58L284,52L273,47L271,45L248,33L225,19L216,15L193,1L189,1L185,4L163,15L161,17L150,22L148,24L141,27L139,29L132,32L130,34L121,38L119,40L94,53L85,59L69,67L46,81L39,84L27,92L13,99Z"/><path class="pl px" d="M0,107L0,329L32,348L37,350L49,358L54,360L61,365L73,371L80,376L121,398L130,404L141,409L159,420L179,430L190,437L190,428L150,407L148,405L141,402L121,390L121,179L119,177L112,174L110,172L49,138L39,131L27,125L9,114L7,112L8,111Z"/><path class="pl py" d="M384,185L346,205L344,207L337,210L335,212L328,215L326,217L319,220L317,222L281,241L272,247L254,256L245,262L238,265L236,267L229,270L227,272L220,275L218,277L192,291L192,427L191,428L191,437L193,437L195,435L204,431L206,429L238,412L247,406L254,403L256,401L261,399L291,381L298,378L300,376L305,374L307,372L312,370L314,368L319,366L321,364L326,362L328,360L333,358L335,356L340,354L347,349L352,347L384,328Z"/><path class="pl pn" d="M190,143L127,179L127,185L128,186L128,201L127,202L127,211L128,212L127,271L128,273L127,274L129,274L135,271L137,269L146,265L162,255L173,250L175,248L190,240L191,238L190,236L190,201L191,200L190,198L190,185L191,184L190,183Z"/></g></svg><div id="introWord" aria-label="BlockForm"><span style="animation-delay:1.70s">B</span><span style="animation-delay:1.81s">l</span><span style="animation-delay:1.92s">o</span><span style="animation-delay:2.03s">c</span><span style="animation-delay:2.14s">k</span><span style="animation-delay:2.25s">F</span><span style="animation-delay:2.36s">o</span><span style="animation-delay:2.47s">r</span><span style="animation-delay:2.58s">m</span></div></div>
+<script>(function(){const e=document.getElementById("intro"),q=location.search,rm=matchMedia("(prefers-reduced-motion: reduce)").matches;if(/nointro/.test(q)){e.remove();return}let done=false;const end=()=>{if(done)return;done=true;e.classList.add("out");setTimeout(()=>e.remove(),650)};e.addEventListener("pointerdown",end);setTimeout(end,rm?900:3500)})()</script>
+<div id="jWrap" hidden><section id="jPanel" class="glass"></section></div>
+<div id="jView" hidden><img id="jViewImg" alt="Attachment full screen"><span>Tap to close</span></div>
 <script>/**
  * @license
  * Copyright 2010-2023 Three.js Authors
@@ -441,5 +458,115 @@ $('tlExp').onclick=tlExport;
  if(d&&Array.isArray(d.objs)&&!location.search.includes('fresh')){S.objs=d.objs;uid=Math.max(1,...S.objs.map(o=>o.id+1));if(d.orbit){orbit.t.fromArray(d.orbit.t);orbit.r=d.orbit.r;orbit.th=d.orbit.th;orbit.ph=d.orbit.ph}}else S.objs=[newObj('Cube 1',M.cube())];
  S.osel=new Set(S.objs.length?[0]:[]);resize();changed(false);ui()})();
 window.BF={TLF,tlRecord,openTL,closeTL,tlShow,tlExport,tlSetAuto,tlSetPlay,pickVideoType,get TL(){return TL},S,M,H,cam,gCam,orbit,runOp,setMode,setSM,selectAll,undo,redo,addPrim,tapSelect,proj,pick,snapView,draw,render,rebuild,ui,toOBJ:()=>M.toOBJ(S.objs),check:()=>M.check(act().mesh),gizmoRect,frame};
+
+/* ---------- journal ---------- */
+const JT={note:'Note',how:'How it should work',bug:'Bug'};
+const JDB=(()=>{let p=null;const open=()=>p||(p=new Promise((res,rej)=>{const r=indexedDB.open('bf-journal',2);r.onupgradeneeded=()=>{const d=r.result;for(const k of['notes','images','audio'])if(!d.objectStoreNames.contains(k))d.createObjectStore(k,{keyPath:'id'})};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}));
+ const tx=async(st,mode,fn)=>{const d=await open();return new Promise((res,rej)=>{const t=d.transaction(st,mode),s=t.objectStore(st);let out;const q=fn(s);if(q)q.onsuccess=()=>out=q.result;t.oncomplete=()=>res(out);t.onerror=()=>rej(t.error)})};
+ return{all:st=>tx(st,'readonly',s=>s.getAll()),get:(st,id)=>tx(st,'readonly',s=>s.get(id)),put:(st,v)=>tx(st,'readwrite',s=>s.put(v)),del:(st,id)=>tx(st,'readwrite',s=>s.delete(id)),clear:st=>tx(st,'readwrite',s=>s.clear())}})();
+const J={notes:[],cur:null,filter:'all',q:'',urls:{}};
+const jid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt=t=>new Date(t).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+async function jLoad(){J.notes=(await JDB.all('notes')).sort((a,b)=>b.updated-a.updated)}
+async function jSave(n){n.updated=Date.now();await JDB.put('notes',n);await jLoad()}
+async function jImgURL(id){if(J.urls[id])return J.urls[id];const r=await JDB.get('images',id);if(!r)return'';return J.urls[id]=URL.createObjectURL(r.blob)}
+/* resize + JPEG compress: longest side 1280, quality .78 */
+async function jCompress(src){const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error('Could not read image'));i.src=typeof src==='string'?src:URL.createObjectURL(src)});
+ const s=Math.min(1,1280/Math.max(img.naturalWidth,img.naturalHeight)),w=Math.max(1,Math.round(img.naturalWidth*s)),h=Math.max(1,Math.round(img.naturalHeight*s)),c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.fillStyle='#070d16';x.fillRect(0,0,w,h);x.drawImage(img,0,0,w,h);
+ const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.78));return{blob,w,h}}
+async function jAddImage(n,src){const {blob,w,h}=await jCompress(src);const id=jid();await JDB.put('images',{id,blob,w,h});n.images.push(id);await jSave(n);return id}
+function jCaptureView(){render();const c=document.createElement('canvas');c.width=canvas.width;c.height=canvas.height;c.getContext('2d').drawImage(canvas,0,0);return c.toDataURL('image/png')}
+function jOpen(){$('jWrap').hidden=false;requestAnimationFrame(()=>$('jWrap').classList.add('open'));jList()}
+function jClose(){const w=$('jWrap');w.classList.remove('open');setTimeout(()=>{if(!w.classList.contains('open'))w.hidden=true},260);J.cur=null}
+function jToggle(){$('jWrap').hidden?jOpen():jClose()}
+async function jList(){J.cur=null;await jLoad();const P=$('jPanel'),q=J.q.toLowerCase();
+ const L=J.notes.filter(n=>(J.filter==='all'||n.tag===J.filter)&&(!q||(n.title+' '+n.body+' '+n.comments.map(c=>c.text).join(' ')).toLowerCase().includes(q)));
+ P.innerHTML=`<div class="jh"><b>JOURNAL</b><span class="jsp"></span><button id="jExp" aria-label="Export journal">Export</button><label class="jbtn" id="jImpL">Import<input id="jImp" type="file" accept="application/json,.json" hidden></label><button id="jNew" class="jpri">+ New</button><button id="jX" aria-label="Close journal">✕</button></div>
+ <button id="jVoice" class="jvoice" aria-label="New voice memo">🎙 New voice memo <small>tap and talk</small></button>
+ <input id="jSearch" type="search" placeholder="Search notes" value="${esc(J.q)}">
+ <div class="jchips">${[['all','All'],...Object.entries(JT)].map(([k,l])=>`<button data-f="${k}" class="${J.filter===k?'on':''}">${l}</button>`).join('')}</div>
+ <div id="jItems">${L.length?L.map(n=>`<button class="jitem" data-id="${n.id}"><span class="jtag t-${n.tag}">${JT[n.tag]}</span><b>${esc(n.title||'Untitled')}</b><small>${fmt(n.updated)} · ${n.images.length} img · ${(n.audio||[]).length?(n.audio.length+' voice · '):''}${n.comments.length} comment${n.comments.length==1?"":"s"}</small><p>${esc(n.body.slice(0,110))}</p></button>`).join(''):'<p class="jempty">'+(J.notes.length?'No notes match.':'No notes yet. Tap + New to start.')+'</p>'}</div>`;
+ $('jX').onclick=jClose;$('jVoice').onclick=async()=>{const n={id:jid(),title:'Voice memo · '+fmt(Date.now()),body:'',tag:J.filter==='all'?'note':J.filter,created:Date.now(),updated:Date.now(),images:[],comments:[],audio:[]};await jSave(n);await jEdit(n.id);vStart('body')};$('jNew').onclick=async()=>{const n={id:jid(),title:'',body:'',tag:J.filter==='all'?'note':J.filter,created:Date.now(),updated:Date.now(),images:[],comments:[],audio:[]};await jSave(n);jEdit(n.id)};
+ $('jSearch').oninput=e=>{J.q=e.target.value;clearTimeout(J.st);J.st=setTimeout(async()=>{await jList();const s=$('jSearch');s.focus();s.setSelectionRange(s.value.length,s.value.length)},200)};
+ P.querySelectorAll('.jchips button').forEach(b=>b.onclick=()=>{J.filter=b.dataset.f;jList()});P.querySelectorAll('.jitem').forEach(b=>b.onclick=()=>jEdit(b.dataset.id));
+ $('jExp').onclick=jExport;$('jImp').onchange=e=>{const f=e.target.files[0];if(f)jImport(f)}}
+async function jEdit(id){const n=J.notes.find(x=>x.id===id);if(!n)return jList();n.audio=n.audio||[];J.cur=n;const P=$('jPanel');
+ P.innerHTML=`<div class="jh"><button id="jBack" aria-label="Back">‹ Notes</button><span class="jsp"></span><button id="jDel" class="jdanger">Delete</button><button id="jX" aria-label="Close journal">✕</button></div>
+ <input id="jTitle" placeholder="Title" value="${esc(n.title)}"><small class="jdate">Created ${fmt(n.created)} · edited <span id="jEd">${fmt(n.updated)}</span></small>
+ <div class="jchips" id="jTag">${Object.entries(JT).map(([k,l])=>`<button data-t="${k}" class="${n.tag===k?'on':''}">${l}</button>`).join('')}</div>
+ <textarea id="jBody" rows="6" placeholder="${n.tag==='how'?'Describe how it should work…':n.tag==='bug'?'What happened? What did you expect?':'Write a note…'}">${esc(n.body)}</textarea>
+ <div class="jrow jvrow"><button id="jMic" class="jbtn jmic" aria-label="Record voice memo">🎙 Record</button><span id="jRecMsg" class="jrecmsg"></span></div>
+ <div id="jAud">${n.audio.map((a,i)=>`<div class="jaud"><span>🎙 ${fmt(a.ts)} · ${vDur(a.dur)}</span><audio controls preload="metadata" data-a="${a.id}"></audio><button data-ad="${a.id}" aria-label="Delete voice memo">✕</button></div>`).join('')}</div>
+ <div class="jimgs" id="jImgs"></div>
+ <div class="jrow"><label class="jbtn">Add photos<input id="jFile" type="file" accept="image/*" multiple hidden></label><button id="jCap" class="jbtn">Capture viewport</button></div>
+ <h4>COMMENTS · ${n.comments.length}</h4><div id="jCom">${n.comments.map(c=>`<div class="jc"><p>${esc(c.text)}</p>${c.audio?`<audio controls preload="metadata" data-a="${c.audio}"></audio>`:''}<small>${fmt(c.ts)}${c.audio?' · 🎙 '+vDur(c.dur):''}</small><button data-c="${c.id}" aria-label="Delete comment">✕</button></div>`).join('')}</div>
+ <div class="jrow"><button id="jCMic" class="jbtn jmic" aria-label="Record voice comment">🎙</button><input id="jCIn" placeholder="Add a comment…" value="${esc(J.draftC||'')}"><button id="jCAdd" class="jpri">Post</button></div><div id="jCPend" class="jrecmsg">${J.pendC?'🎙 Voice clip attached ('+vDur(J.pendC.dur)+') · <button id="jCPendX">remove</button>':''}</div>`;J.draftC='';
+ for(const el of P.querySelectorAll('audio[data-a]'))vURL(el.dataset.a).then(u=>{if(u)el.src=u});
+ P.querySelectorAll('[data-ad]').forEach(b=>b.onclick=async()=>{if(!confirm('Delete this voice memo?'))return;n.audio=n.audio.filter(a=>a.id!==b.dataset.ad);await JDB.del('audio',b.dataset.ad);await jSave(n);jEdit(n.id)});
+ $('jMic').onclick=()=>V.on?vStop():vStart('body');$('jCMic').onclick=()=>V.on?vStop():vStart('comment');
+ if($('jCPendX'))$('jCPendX').onclick=async()=>{await JDB.del('audio',J.pendC.id);J.pendC=null;J.draftC=$('jCIn').value;jEdit(n.id)};
+ const imgs=$('jImgs');for(const iid of n.images){const u=await jImgURL(iid);const d=document.createElement('div');d.className='jim';d.innerHTML=`<img src="${u}" data-i="${iid}" alt="attachment"><button data-r="${iid}" aria-label="Remove image">✕</button>`;imgs.append(d)}
+ imgs.querySelectorAll('img').forEach(im=>im.onclick=()=>{$('jViewImg').src=im.src;$('jView').hidden=false});
+ imgs.querySelectorAll('[data-r]').forEach(b=>b.onclick=async()=>{if(!confirm('Remove this image?'))return;n.images=n.images.filter(x=>x!==b.dataset.r);await JDB.del('images',b.dataset.r);await jSave(n);jEdit(n.id)});
+ let st;const sv=()=>{clearTimeout(st);st=setTimeout(async()=>{await jSave(n);const e=$('jEd');if(e)e.textContent=fmt(n.updated)},300)};
+ $('jTitle').oninput=e=>{n.title=e.target.value;sv()};$('jBody').oninput=e=>{n.body=e.target.value;sv()};
+ P.querySelectorAll('#jTag button').forEach(b=>b.onclick=async()=>{n.tag=b.dataset.t;await jSave(n);P.querySelectorAll('#jTag button').forEach(x=>x.classList.toggle('on',x===b))});
+ $('jBack').onclick=async()=>{await vStop(1);clearTimeout(st);await jSave(n);jList()};$('jX').onclick=async()=>{await vStop(1);clearTimeout(st);await jSave(n);jClose()};
+ $('jDel').onclick=async()=>{if(!confirm('Delete “'+(n.title||'Untitled')+'”? This cannot be undone.'))return;await vStop(1);for(const i of n.images)await JDB.del('images',i);for(const a of n.audio)await JDB.del('audio',a.id);for(const c of n.comments)if(c.audio)await JDB.del('audio',c.audio);await JDB.del('notes',n.id);toast('Note deleted');jList()};
+ $('jFile').onchange=async e=>{const fs=[...e.target.files];for(const f of fs){try{await jAddImage(n,f)}catch(err){toast(err.message)}}jEdit(n.id)};
+ $('jCap').onclick=async()=>{await jAddImage(n,jCaptureView());toast('Viewport captured');jEdit(n.id)};
+ const post=async()=>{if(V.on&&V.target==='comment')await vStop();const v=$('jCIn').value.trim();const pc=J.pendC;if(!v&&!pc)return;n.comments.push({id:jid(),text:v,ts:Date.now(),...(pc?{audio:pc.id,dur:pc.dur}:{})});J.pendC=null;await jSave(n);jEdit(n.id)};$('jCAdd').onclick=post;$('jCIn').onkeydown=e=>{if(e.key==='Enter')post()};
+ P.querySelectorAll('[data-c]').forEach(b=>b.onclick=async()=>{if(!confirm('Delete this comment?'))return;const dc=n.comments.find(c=>c.id===b.dataset.c);if(dc&&dc.audio)await JDB.del('audio',dc.audio);n.comments=n.comments.filter(c=>c.id!==b.dataset.c);await jSave(n);jEdit(n.id)})}
+
+/* ---------- voice memos + live transcription ---------- */
+const V={on:false};
+const vDur=s=>{s=Math.round(s||0);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
+function vPickMime(){const MR=window.MediaRecorder;if(!MR)return'';const L=['audio/mp4;codecs=mp4a.40.2','audio/mp4','audio/aac','audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus'];if(!MR.isTypeSupported)return'';return L.find(t=>{try{return MR.isTypeSupported(t)}catch(e){return false}})||''}
+async function vURL(id){if(J.urls['a'+id])return J.urls['a'+id];const r=await JDB.get('audio',id);if(!r)return'';return J.urls['a'+id]=URL.createObjectURL(r.blob)}
+function vMsg(t,cls){const m=$('jRecMsg'),c=$('jCPend'),el=V.target==='comment'&&c?c:m;if(el){el.innerHTML=t;el.className='jrecmsg'+(cls?' '+cls:'')}}
+function vUI(){const b=$(V.target==='comment'?'jCMic':'jMic');['jMic','jCMic'].forEach(i=>{const x=$(i);if(x){x.classList.toggle('rec',V.on&&x===b);x.disabled=V.on&&x!==b}});if(b)b.textContent=V.on?(V.target==='comment'?'■ ':'■ Stop · ')+vDur((Date.now()-V.t0)/1000):(V.target==='comment'?'🎙':'🎙 Record')}
+async function vStart(target){if(V.on)return;const n=J.cur;if(!n)return;
+ if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||!window.MediaRecorder){V.target=target;vMsg('Voice recording isn’t supported in this browser.','err');toast('Voice recording not supported here');return false}
+ let stream;try{stream=await navigator.mediaDevices.getUserMedia({audio:true})}catch(e){V.target=target;const den=e&&(e.name==='NotAllowedError'||e.name==='SecurityError');vMsg(den?'Microphone access was denied. Allow it in Settings › Safari › Microphone, then try again.':'Couldn’t start the microphone ('+esc(e&&e.message||e)+').','err');toast(den?'Microphone permission denied':'Microphone unavailable');return false}
+ const mime=vPickMime();let rec;try{rec=mime?new MediaRecorder(stream,{mimeType:mime}):new MediaRecorder(stream)}catch(e){rec=new MediaRecorder(stream)}
+ Object.assign(V,{on:true,target,note:n,stream,rec,chunks:[],t0:Date.now(),final:'',interim:'',mime:rec.mimeType||mime||'audio/webm',sr:null,srOK:false});
+ const el=$(target==='comment'?'jCIn':'jBody');V.base=el?el.value:'';
+ rec.ondataavailable=e=>{if(e.data&&e.data.size)V.chunks.push(e.data)};
+ V.done=new Promise(r=>rec.onstop=r);rec.start(1000);
+ V.tick=setInterval(vUI,500);vUI();
+ const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(!SR)vMsg('● Recording audio. Live transcript isn’t available in this browser — the audio is still saved.','warn');
+ else{vMsg('● Listening… speak and your words appear as text.','live');vSR(SR)}
+ return true}
+function vSR(SR){let sr;try{sr=new SR()}catch(e){vMsg('● Recording audio. Live transcript isn’t available — the audio is still saved.','warn');return}
+ V.sr=sr;sr.continuous=true;sr.interimResults=true;sr.lang='en-US';
+ sr.onresult=e=>{let int='';for(let i=e.resultIndex;i<e.results.length;i++){const r=e.results[i],t=(r[0]&&r[0].transcript||'').trim();if(!t)continue;if(r.isFinal)V.final+=(V.final?' ':'')+t;else int+=(int?' ':'')+t}V.interim=int;vApply()};
+ sr.onerror=e=>{if(e.error==='not-allowed'||e.error==='service-not-allowed'){V.srDenied=true;vMsg('● Recording audio. Speech recognition permission was denied, so live transcript isn’t available — the audio is still saved.','warn')}else if(e.error==='no-speech'||e.error==='aborted'){}else vMsg('● Recording audio. Live transcript paused ('+esc(e.error)+').','warn')};
+ sr.onend=()=>{if(V.on&&V.sr===sr&&!V.srDenied){try{sr.start()}catch(e){}}};/* iOS ends sessions on its own: restart */
+ try{sr.start()}catch(e){vMsg('● Recording audio. Live transcript isn’t available — the audio is still saved.','warn')}}
+function vText(withInt){const b=V.base,add=V.final+(withInt&&V.interim?(V.final?' ':'')+V.interim:'');if(!add)return b;return b+(b&&!/\s$/.test(b)?(V.target==='body'?'\n':' '):'')+add}
+function vApply(){const el=$(V.target==='comment'?'jCIn':'jBody');if(el){el.value=vText(true);if(el.tagName==='TEXTAREA')el.scrollTop=el.scrollHeight}
+ if(V.target==='body'&&V.note){V.note.body=vText(false);clearTimeout(V.st);V.st=setTimeout(()=>jSave(V.note),400)}}
+async function vStop(quiet){if(!V.on)return;V.on=false;clearInterval(V.tick);clearTimeout(V.st);const n=V.note,target=V.target,dur=(Date.now()-V.t0)/1000;
+ if(V.sr){const s=V.sr;V.sr=null;try{s.stop()}catch(e){}}
+ V.interim='';try{V.rec.state!=='inactive'&&V.rec.stop()}catch(e){}
+ await Promise.race([V.done,new Promise(r=>setTimeout(r,1500))]);V.stream.getTracks().forEach(t=>t.stop());
+ const text=vText(false),blob=new Blob(V.chunks,{type:(V.mime||'audio/webm').split(';')[0]});const id=jid();
+ if(blob.size)await JDB.put('audio',{id,blob,mime:blob.type,dur});
+ if(target==='body'){n.body=text;if(blob.size)n.audio.push({id,dur,ts:Date.now(),mime:blob.type});await jSave(n)}
+ else{J.draftC=text;if(blob.size){if(J.pendC)await JDB.del('audio',J.pendC.id);J.pendC={id,dur}}}
+ if(!quiet){toast(blob.size?'Voice memo saved':'No audio captured');if(J.cur===n)await jEdit(n.id)}else if(target==='comment'&&J.pendC){await JDB.del('audio',J.pendC.id);J.pendC=null;J.draftC=''}}
+const blobToURL=b=>new Promise(r=>{const f=new FileReader();f.onload=()=>r(f.result);f.readAsDataURL(b)});
+async function jExport(){await jLoad();const imgs={};for(const n of J.notes)for(const i of n.images){const r=await JDB.get('images',i);if(r)imgs[i]={w:r.w,h:r.h,data:await blobToURL(r.blob)}}
+ const aud={};for(const n of J.notes)for(const id of[...(n.audio||[]).map(a=>a.id),...n.comments.filter(c=>c.audio).map(c=>c.audio)]){const r=await JDB.get('audio',id);if(r)aud[id]={mime:r.mime,dur:r.dur,data:await blobToURL(r.blob)}}
+ const out={app:'BlockForm',kind:'journal',version:2,exported:new Date().toISOString(),notes:J.notes,images:imgs,audio:aud},blob=new Blob([JSON.stringify(out,null,1)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='BlockForm-journal.json';document.body.append(a);a.click();a.remove();toast('Journal exported');return out}
+async function jImport(file){try{const d=JSON.parse(typeof file==='string'?file:await file.text());if(d.kind!=='journal'||!Array.isArray(d.notes))throw new Error('Not a BlockForm journal file');let k=0;
+  for(const [id,im] of Object.entries(d.images||{})){const blob=await (await fetch(im.data)).blob();await JDB.put('images',{id,blob,w:im.w,h:im.h})}
+  for(const [id,a] of Object.entries(d.audio||{})){const blob=await (await fetch(a.data)).blob();await JDB.put('audio',{id,blob,mime:a.mime||blob.type,dur:a.dur||0})}
+  for(const n of d.notes){if(!n.id)continue;await JDB.put('notes',{title:'',body:'',tag:'note',images:[],comments:[],audio:[],created:Date.now(),updated:Date.now(),...n});k++}
+  toast('Imported '+k+' note'+(k===1?'':'s'));await jList();return k}catch(e){toast('Import failed: '+e.message);return 0}}
+$('jBtn').onclick=jToggle;$('jWrap').onclick=e=>{if(e.target.id==='jWrap')jClose()};$('jView').onclick=()=>{$('jView').hidden=true};
+window.BFJ={V,vStart,vStop,vPickMime,J,JDB,jOpen,jClose,jList,jEdit,jExport,jImport,jLoad};
 </script>
 </body></html>
