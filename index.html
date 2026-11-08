@@ -303,9 +303,9 @@ function frame(){const pts=[];if(S.mode==='edit'&&S.objs[S.active]){const m=S.ob
  if(!pts.length)return;const b=new THREE.Box3().setFromPoints(pts.map(p=>new THREE.Vector3(...p)));b.getCenter(orbit.t);orbit.r=Math.max(4,b.getSize(new THREE.Vector3()).length()*1.6);draw()}
 /* ---------- render ---------- */
 let raf=0;function draw(){if(!raf)raf=requestAnimationFrame(render)}
-function render(){raf=0;if(anim)anim();applyCam();const w=innerWidth,h=innerHeight;R.setViewport(0,0,w,h);R.setScissorTest(false);R.clear();R.render(scene,cam);
+function render(){raf=0;if(VW&&(innerWidth!==VW||innerHeight!==VH))resize();if(anim)anim();applyCam();const w=innerWidth,h=innerHeight;R.setViewport(0,0,w,h);R.setScissorTest(false);R.clear();R.render(scene,cam);
  const g=gizmoRect();R.clearDepth();R.setScissorTest(true);R.setScissor(g.x,h-g.y-g.h,g.w,g.h);R.setViewport(g.x,h-g.y-g.h,g.w,g.h);R.render(gScene,gCam);R.setScissorTest(false);drawOverlay();if(anim)draw()}
-function resize(){const w=innerWidth,h=innerHeight;R.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();const o=$('ov');o.width=w*devicePixelRatio;o.height=h*devicePixelRatio;draw()}addEventListener('resize',resize);
+let VW=0,VH=0;function resize(){const w=innerWidth,h=innerHeight;VW=w;VH=h;R.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();const o=$('ov');o.width=w*devicePixelRatio;o.height=h*devicePixelRatio;draw()}addEventListener('resize',resize);addEventListener('orientationchange',()=>setTimeout(resize,80));if(window.visualViewport)visualViewport.addEventListener('resize',resize);addEventListener('pageshow',()=>setTimeout(resize,80));document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(resize,80)});setTimeout(resize,300);setTimeout(resize,1000);
 /* ---------- selection helpers ---------- */
 const act=()=>S.objs[S.active];
 function selVerts(){const m=act()?.mesh;if(!m)return new Set();if(S.sm==='v')return new Set(S.vs);if(S.sm==='e'){const s=new Set();S.es.forEach(k=>k.split('_').forEach(i=>s.add(+i)));return s}const s=new Set();S.fs.forEach(fi=>(m.faces[fi]||[]).forEach(i=>s.add(i)));return s}
