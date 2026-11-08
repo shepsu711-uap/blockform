@@ -151,22 +151,35 @@ M.extrudeVerts=(m0,vids,d)=>{const m=M.clone(m0),nv=[];for(const v of vids){cons
 /* INSET individual faces */
 M.inset=(m0,fids,t,depth=0)=>{const m=M.clone(m0);for(const fi of fids){const f=m.faces[fi],c=M.center(m,f),n=M.normal(m,f),inner=f.map(a=>{m.verts.push(vadd(vlerp(m.verts[a],c,t),vmul(n,depth)));return m.verts.length-1});
   m.faces[fi]=inner;f.forEach((a,i)=>{const j=(i+1)%f.length;m.faces.push([a,f[j],inner[j],inner[i]])})}return{mesh:m,faces:fids}};
-/* BEVEL / CHAMFER edges (sequential; endpoints must be degree-3 vertices) */
+/* BEVEL / CHAMFER edges (sequential; corners of any face-degree get a fan cap) */
 M.bevelOne=(m,key,w,segs)=>{const E=M.edges(m),e=E.get(key);if(!e||e.faces.length!==2)return null;
  const fA=m.faces.findIndex(f=>f.some((x,i)=>x===e.a&&f[(i+1)%f.length]===e.b)),fB=m.faces.findIndex(f=>f.some((x,i)=>x===e.b&&f[(i+1)%f.length]===e.a));if(fA<0||fB<0)return null;
  const a=e.a,b=e.b,F1=m.faces[fA],F2=m.faces[fB],nx=(f,v,s)=>f[(f.indexOf(v)+s+f.length)%f.length];
- const deg=v=>m.faces.filter(f=>f.includes(v)).length;if(deg(a)!==3||deg(b)!==3)return null;
+
  const x1a=nx(F1,a,-1),x2a=nx(F2,a,1),x1b=nx(F1,b,1),x2b=nx(F2,b,-1);
  const lim=Math.min(...[[a,x1a],[a,x2a],[b,x1b],[b,x2b]].map(([p,q])=>vlen(vsub(m.verts[q],m.verts[p]))))*.49;w=Math.min(w,lim);
+ const fanOf=(v,x1,x2)=>{const oth=[];m.faces.forEach((g,gi)=>{if(gi!==fA&&gi!==fB&&g.includes(v))oth.push(gi)});if(!oth.length)return null;
+  if(oth.length===1)return{one:oth[0]};
+  const chain=[x1],faces=[];let cur=E.get(M.ek(v,x1)).faces.find(f=>f!==fA),guard=0;
+  while(cur!=null&&guard++<oth.length+2){faces.push(cur);const g=m.faces[cur],k=g.indexOf(v),p=g[(k-1+g.length)%g.length],n2=g[(k+1)%g.length],nv=(p===chain[chain.length-1])?n2:p;
+   chain.push(nv);if(nv===x2)break;cur=E.get(M.ek(v,nv)).faces.find(f=>f!==cur)}
+  if(chain[chain.length-1]!==x2||faces.length!==oth.length)return null;return{chain,faces}};
+ const fanA=fanOf(a,x1a,x2a),fanB=fanOf(b,x1b,x2b);if(!fanA||!fanB)return null;
  const prof=(v,p,q)=>{const P=m.verts[v],A=vadd(P,vmul(vnorm(vsub(m.verts[p],P)),w)),B=vadd(P,vmul(vnorm(vsub(m.verts[q],P)),w)),ids=[];
   for(let j=0;j<=segs;j++){const t=j/segs,pt=vadd(vadd(vmul(A,(1-t)*(1-t)),vmul(P,2*t*(1-t))),vmul(B,t*t));ids.push(m.verts.length);m.verts.push(segs===1?vlerp(A,B,t):pt)}return ids};
  const A=prof(a,x1a,x2a),B=prof(b,x1b,x2b);
  m.faces[fA]=F1.map(v=>v===a?A[0]:v===b?B[0]:v);m.faces[fB]=F2.map(v=>v===a?A[segs]:v===b?B[segs]:v);
- const fix=(v,ids,rev)=>{const gi=m.faces.findIndex((f,i)=>i!==fA&&i!==fB&&f.includes(v));const g=m.faces[gi],k=g.indexOf(v),seq=rev?ids.slice().reverse():ids;
-  // strip has v_j -> v_j+1 at a (needs reverse in cap); at b strip has b_j+1 -> b_j
-  m.faces[gi]=[...g.slice(0,k),...seq,...g.slice(k+1)]};
- fix(a,A,true);fix(b,B,false);const strip=[];for(let j=0;j<segs;j++){strip.push(m.faces.length);m.faces.push([A[j],A[j+1],B[j+1],B[j]])}
- return strip};
+ const capIdx=[];
+ const corner=(v,ids,fan)=>{if(fan.one!=null){const gi=fan.one,g=m.faces[gi],k=g.indexOf(v),seq=(v===a)?ids.slice().reverse():ids;m.faces[gi]=[...g.slice(0,k),...seq,...g.slice(k+1)];return}
+  const V=m.verts[v],pts=new Map();pts.set(fan.chain[0],ids[0]);pts.set(fan.chain[fan.chain.length-1],ids[ids.length-1]);
+  for(let i=1;i<fan.chain.length-1;i++){const u=fan.chain[i];pts.set(u,m.verts.length);m.verts.push(vadd(V,vmul(vnorm(vsub(m.verts[u],V)),w)))}
+  fan.faces.forEach(gi=>{const g=m.faces[gi],k=g.indexOf(v),n=g.length,seq=[pts.get(g[(k-1+n)%n]),pts.get(g[(k+1)%n])];m.faces[gi]=[...g.slice(0,k),...seq,...g.slice(k+1)]});
+  const ring=[ids[0],...fan.chain.slice(1,-1).map(u=>pts.get(u)),...ids.slice(1).reverse()];let cn=[0,0,0];const rp=ring.map(i=>m.verts[i]);
+  for(let i=0;i<rp.length;i++){const p=rp[i],q=rp[(i+1)%rp.length];cn[0]+=(p[1]-q[1])*(p[2]+q[2]);cn[1]+=(p[2]-q[2])*(p[0]+q[0]);cn[2]+=(p[0]-q[0])*(p[1]+q[1])}
+  const cd=vsub(V,vmul(vadd(m.verts[a],m.verts[b]),.5));if(cn[0]*cd[0]+cn[1]*cd[1]+cn[2]*cd[2]<0)ring.reverse();
+  capIdx.push(m.faces.length);m.faces.push(ring)};
+ corner(a,A,fanA);corner(b,B,fanB);const strip=[];for(let j=0;j<segs;j++){strip.push(m.faces.length);m.faces.push([A[j],A[j+1],B[j+1],B[j]])}
+ strip.push(...capIdx);return strip};
 M.bevel=(m0,keys,w,segs)=>{let m=M.clone(m0),pos=keys.map(k=>k.split('_').map(i=>m0.verts[+i])),strips=[],skipped=0;
  for(const [p,q] of pos){const E=M.edges(m);let key=null;for(const [k,e] of E){const A=m.verts[e.a],B=m.verts[e.b];if((vlen(vsub(A,p))<1e-9&&vlen(vsub(B,q))<1e-9)||(vlen(vsub(A,q))<1e-9&&vlen(vsub(B,p))<1e-9)){key=k;break}}
   const r=key&&M.bevelOne(m,key,w,segs);if(!r){skipped++;continue}const before=m.faces.length;const map=M.compact(m);strips.push(...r)}
@@ -374,7 +387,7 @@ const OPS={
    if(S.sm==='e'){const r=M.extrudeEdges(m,[...S.es],p.amount);if(!r)return{err:'Edge extrude needs open (boundary) edges — use Face mode on solids'};const vs=new Set(r.verts);return{mesh:r.mesh,es:M.edgesFromVerts(r.mesh,vs),vs}}
    const r=M.extrudeVerts(m,[...S.vs],p.amount);return{mesh:r.mesh,vs:new Set(r.verts)}},need:'something'},
  inset:{title:'INSET FACES',params:[['t','Thickness',.01,.95,.01,.25],['depth','Depth',-1.5,1.5,.01,0]],run(m,p){if(S.sm!=='f'||!S.fs.size)return{err:'Select faces to inset'};const r=M.inset(m,[...S.fs],p.t,p.depth);return{mesh:r.mesh,fs:r.faces}}},
- bevel:{title:'BEVEL · CHAMFER',params:[['w','Width',.01,1.5,.01,.25],['segs','Segments',1,8,1,1]],run(m,p){if(S.sm!=='e'||!S.es.size)return{err:'Select edges to bevel (Edge mode)'};const r=M.bevel(m,[...S.es],p.w,p.segs|0);if(!r)return{err:'Bevel needs edges between two faces with 3-way corners'};return{mesh:r.mesh,fs:r.faces,skipped:r.skipped,toF:1}}},
+ bevel:{title:'BEVEL · CHAMFER',params:[['w','Width',.01,1.5,.01,.25],['segs','Segments',1,8,1,1]],run(m,p){if(S.sm!=='e'||!S.es.size)return{err:'Select edges to bevel (Edge mode)'};const r=M.bevel(m,[...S.es],p.w,p.segs|0);if(!r)return{err:'Bevel needs a closed edge between two faces'};return{mesh:r.mesh,fs:r.faces,skipped:r.skipped,toF:1}}},
  loop:{title:'LOOP CUT',params:[['slide','Slide',.02,.98,.01,.5],['cuts','Cuts',1,8,1,1]],run(m,p,a){const r=M.loopCut(m,a.key,p.slide,p.cuts|0);if(!r)return{err:'Loop cut needs a ring of quads'};const vs=new Set(r.verts);return{mesh:r.mesh,vs,es:M.edgesFromVerts(r.mesh,vs),toE:1}}},
  subd:{title:'SUBDIVIDE',params:[],run(m){const fs=S.sm==='f'&&S.fs.size?[...S.fs]:M.facesFromVerts(m,selVerts());if(!fs.length)return{err:'Select faces to subdivide'};const r=M.subdivide(m,fs);return{mesh:r.mesh,fs:r.faces,toF:1}}},
  merge:{title:'MERGE',params:[],run(m){const r=M.merge(m,[...selVerts()]);if(!r)return{err:'Select 2+ vertices to merge'};return{mesh:r.mesh,vs:new Set(r.verts),toV:1}}},
