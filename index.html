@@ -709,7 +709,8 @@ function openTL(){closeAdjust();tlRecord();if(TLF.length<1)return toast('Nothing
 function closeTL(){if(TL){tlSetPlay(false)}$('tl').hidden=true;draw()}
 /* gestures: 1 finger orbit, 2 finger pinch zoom + pan, wheel zoom, right/shift drag pan, double-tap resumes auto orbit */
 (function(){const el=$('tlC'),P=new Map();let g=null,lastTap=0;
- const pan=(dx,dy)=>{const o=TL.o,s=o.r*.0016*(TW/el.clientWidth);const right=new THREE.Vector3(-Math.sin(o.th),Math.cos(o.th),0),up=new THREE.Vector3().crossVectors(right,new THREE.Vector3().subVectors(o.t,TL.c.position).normalize()).normalize();o.t.addScaledVector(right,-dx*s).addScaledVector(up,-dy*s)};
+ /* right/up are the camera axes for this Z-up orbit. +dy (drag down) shifts the target along camera up so the scene follows the finger, matching the modeling viewport. */
+ const pan=(dx,dy)=>{const o=TL.o,s=o.r*.0016*(TW/el.clientWidth);const right=new THREE.Vector3(-Math.sin(o.th),Math.cos(o.th),0),up=new THREE.Vector3().crossVectors(right,new THREE.Vector3().subVectors(o.t,TL.c.position).normalize()).normalize();o.t.addScaledVector(right,-dx*s).addScaledVector(up,dy*s)};
  el.addEventListener('pointerdown',e=>{if(!TL)return;try{el.setPointerCapture(e.pointerId)}catch(_){}P.set(e.pointerId,{x:e.clientX,y:e.clientY});tlSetAuto(false);
   const now=performance.now();if(P.size===1){if(now-lastTap<320){tlSetAuto(true);lastTap=0;g=null;return}lastTap=now;g={type:e.button===2||e.shiftKey?'pan':'orbit'}}else g={type:'two'}});
  el.addEventListener('pointermove',e=>{if(!TL||!P.has(e.pointerId)||!g)return;const p=P.get(e.pointerId),dx=e.clientX-p.x,dy=e.clientY-p.y;
