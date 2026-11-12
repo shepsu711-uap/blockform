@@ -212,8 +212,77 @@ M.extrudeEdges=(m0,keys,d)=>{const m=M.clone(m0),E=M.edges(m),nv=new Map(),out=[
 /* EXTRUDE VERTS -> wire edges */
 M.extrudeVerts=(m0,vids,d)=>{const m=M.clone(m0),nv=[];for(const v of vids){const i=m.verts.length;m.verts.push(vadd(m.verts[v],[0,0,d]));m.wires.push([v,i]);nv.push(i)}return{mesh:m,verts:nv}};
 /* INSET individual faces */
-M.inset=(m0,fids,t,depth=0)=>{const m=M.clone(m0);for(const fi of fids){const f=m.faces[fi],c=M.center(m,f),n=M.normal(m,f),inner=f.map(a=>{m.verts.push(vadd(vlerp(m.verts[a],c,t),vmul(n,depth)));return m.verts.length-1});
-  m.faces[fi]=inner;f.forEach((a,i)=>{const j=(i+1)%f.length;m.faces.push([a,f[j],inner[j],inner[i]])})}return{mesh:m,faces:fids}};
+/* Inset and bevel corners are the intersection of adjacent edges offset inward
+   by the width. That point lies on the angle bisector at distance width/sin(half-angle).
+   Each face clamps its own width so an offset edge never flips; a collapsing edge
+   becomes one shared vertex. */
+M._newell=function(pts){let n=[0,0,0];for(let i=0;i<pts.length;i++){const a=pts[i],b=pts[(i+1)%pts.length];n[0]+=(a[1]-b[1])*(a[2]+b[2]);n[1]+=(a[2]-b[2])*(a[0]+b[0]);n[2]+=(a[0]-b[0])*(a[1]+b[1])}return n};
+M._basis=function(N){const n=vnorm(N);const t=Math.abs(n[0])<0.9?[1,0,0]:[0,1,0];const u=vnorm(vcross(n,t));const v=vcross(n,u);return{n,u,v}};
+M._to2=function(p,o,B){const d=vsub(p,o);return[vdot(d,B.u),vdot(d,B.v)]};
+M._to3=function(q,o,B){return vadd(o,vadd(vmul(B.u,q[0]),vmul(B.v,q[1])))};
+M._offset2=function(poly,widths){const n=poly.length,out=[];for(let i=0;i<n;i++){const i0=(i-1+n)%n,A=poly[i0],B=poly[i],C=poly[(i+1)%n];const e1x=B[0]-A[0],e1y=B[1]-A[1],e2x=C[0]-B[0],e2y=C[1]-B[1];const l1=Math.hypot(e1x,e1y)||1,l2=Math.hypot(e2x,e2y)||1;const d1x=e1x/l1,d1y=e1y/l1,d2x=e2x/l2,d2y=e2y/l2;const w1=widths[i0]||0,w2=widths[i]||0;const p1=[B[0]-d1y*w1,B[1]+d1x*w1],p2=[B[0]-d2y*w2,B[1]+d2x*w2];const den=d1x*d2y-d1y*d2x;if(Math.abs(den)<1e-12){out.push([B[0],B[1]]);continue}const s=((p2[0]-p1[0])*d2y-(p2[1]-p1[1])*d2x)/den;out.push([p1[0]+d1x*s,p1[1]+d1y*s])}return out};
+M._polyArea2=function(p){let a=0;for(let i=0;i<p.length;i++){const b=p[(i+1)%p.length];a+=p[i][0]*b[1]-b[0]*p[i][1]}return a/2};
+M._polyCross=function(p){const n=p.length,cr=(a,b,c)=>(b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]);for(let i=0;i<n;i++)for(let j=i+1;j<n;j++){if(Math.abs(i-j)<=1||(i===0&&j===n-1))continue;const a=p[i],b=p[(i+1)%n],c=p[j],d=p[(j+1)%n];const o1=cr(a,b,c),o2=cr(a,b,d),o3=cr(c,d,a),o4=cr(c,d,b);if(o1*o2<0&&o3*o4<0)return true}return false};
+M._offsetOk=function(orig,next){if(!next||next.length!==orig.length)return false;const a0=M._polyArea2(orig),a1=M._polyArea2(next);if(a0*a1<0&&Math.abs(a1)>Math.abs(a0)*1e-4)return false;if(M._polyCross(next))return false;const n=orig.length;for(let i=0;i<n;i++){const ax=orig[(i+1)%n][0]-orig[i][0],ay=orig[(i+1)%n][1]-orig[i][1];const bx=next[(i+1)%n][0]-next[i][0],by=next[(i+1)%n][1]-next[i][1];if(Math.hypot(bx,by)<1e-5)continue;if(ax*bx+ay*by<0)return false}return true};
+M._faceScale=function(pts,widths){const N=M._newell(pts);if(vlen(N)<1e-10)return 0;const B=M._basis(N),o=pts[0],p2=pts.map(p=>M._to2(p,o,B));if(M._offsetOk(p2,M._offset2(p2,widths)))return 1;let lo=0,hi=1,best=0;for(let k=0;k<22;k++){const mid=(lo+hi)/2,q=M._offset2(p2,widths.map(x=>x*mid));if(q&&M._offsetOk(p2,q)){best=mid;lo=mid}else hi=mid}return best};
+M._maxUniform=function(pts){let hi=0;for(let i=0;i<pts.length;i++)hi=Math.max(hi,vlen(vsub(pts[(i+1)%pts.length],pts[i])));if(hi<1e-8)return 0;return M._faceScale(pts,pts.map(()=>hi))*hi};
+M.offsetCorners=function(pts,widths){const N=M._newell(pts);if(vlen(N)<1e-12)return null;const B=M._basis(N),o=pts[0];return M._offset2(pts.map(p=>M._to2(p,o,B)),widths).map(p=>M._to3(p,o,B))};
+M.inset=function(m0,fids,t,depth){const m=M.clone(m0);t=Math.max(0,Math.min(0.999,+t||0));depth=+depth||0;for(const fi of fids){const f=m.faces[fi];if(!f||f.length<3)continue;const pts=f.map(i=>m.verts[i]),nrm=M.normal(m,f),d=t*M._maxUniform(pts);const inner=d<1e-8?pts:M.offsetCorners(pts,f.map(()=>d));if(!inner)continue;const ids=inner.map(p=>{m.verts.push(vadd(p,vmul(nrm,depth)));return m.verts.length-1});m.faces[fi]=ids;f.forEach((a,i)=>{const j=(i+1)%f.length,q=[a,f[j],ids[j],ids[i]];if(new Set(q).size>=3)m.faces.push(q)})}return{mesh:m,faces:fids.slice()}};
+M._onEdge=function(p,V,U){const d=vsub(U,V),L2=vdot(d,d);if(L2<1e-12)return false;const t=vdot(vsub(p,V),d)/L2;if(t<1e-3||t>1-1e-3)return false;return vlen(vsub(vadd(V,vmul(d,t)),p))<1e-4};
+M._fillFresh=function(m,fresh,refs){const cnt=new Map();m.faces.forEach(f=>{for(let i=0;i<f.length;i++){const a=f[i],b=f[(i+1)%f.length];if(!fresh.has(a)||!fresh.has(b))continue;const k=M.ek(a,b);cnt.set(k,(cnt.get(k)||0)+1)}});const adj=new Map();for(const [k,c] of cnt){if(c!==1)continue;const [a,b]=k.split('_').map(Number);if(!adj.has(a))adj.set(a,[]);if(!adj.has(b))adj.set(b,[]);adj.get(a).push(b);adj.get(b).push(a)}const seen=new Set(),added=[];for(const s0 of adj.keys()){if(seen.has(s0))continue;const loop=[s0];seen.add(s0);let prev=-1,cur=s0,ok=true;while(true){const ns=(adj.get(cur)||[]).filter(x=>x!==prev);if(!ns.length){ok=false;break}const nx=ns[0];if(nx===s0)break;if(seen.has(nx)||loop.length>48){ok=false;break}seen.add(nx);loop.push(nx);prev=cur;cur=nx}if(!ok||loop.length<3)continue;const has=(a,b)=>m.faces.some(f=>{for(let i=0;i<f.length;i++)if(f[i]===a&&f[(i+1)%f.length]===b)return true;return false});let bad=0,good=0;for(let i=0;i<loop.length;i++){const a=loop[i],b=loop[(i+1)%loop.length];if(has(a,b)&&!has(b,a))bad++;else if(has(b,a)&&!has(a,b))good++}if(bad>good)loop.reverse();if(loop.length===3){added.push(m.faces.length);m.faces.push(loop.slice())}else{const c=[0,0,0];loop.forEach(i=>{c[0]+=m.verts[i][0];c[1]+=m.verts[i][1];c[2]+=m.verts[i][2]});c[0]/=loop.length;c[1]/=loop.length;c[2]/=loop.length;const cid=m.verts.length;m.verts.push(c);for(let i=0;i<loop.length;i++){added.push(m.faces.length);m.faces.push([cid,loop[i],loop[(i+1)%loop.length]])}}}return added};
+M._bevelBuild=function(m0,keys,w0,segs){
+  segs=Math.max(1,segs|0);w0=Math.max(0,+w0||0);if(!(w0>0)||!keys||!keys.length)return null;
+  const m=M.clone(m0),orig=m.faces.map(f=>f.slice()),E0=M.edges(m),sel=[];
+  for(const k of new Set(keys)){const e=E0.get(k);if(!e||e.faces.length!==2)continue;sel.push({key:k,a:e.a,b:e.b,fA:e.faces[0],fB:e.faces[1]})}
+  if(!sel.length)return null;
+  const bev=new Set(sel.map(e=>e.key)),faceW=new Map(),corner=new Map();
+  for(const e of sel)for(const fi of [e.fA,e.fB]){if(faceW.has(fi))continue;const f=orig[fi],pts=f.map(i=>m.verts[i]);const widths=f.map((v,i)=>bev.has(M.ek(v,f[(i+1)%f.length]))?w0:0);const s=M._faceScale(pts,widths);const w=widths.map(x=>x*s);faceW.set(fi,w);const neu=M.offsetCorners(pts,w);if(!neu)return null;corner.set(fi,neu)}
+  const cache=new Map(),fresh=new Set();
+  const idOf=p=>{const key=p.map(x=>Math.round(x*1e6)).join(',');if(cache.has(key))return cache.get(key);const id=m.verts.length;m.verts.push(p.slice());cache.set(key,id);fresh.add(id);return id};
+  const cid=(fi,k)=>{const p=corner.get(fi)[k],oid=orig[fi][k];if(vlen(vsub(p,m.verts[oid]))<1e-5)return oid;return idOf(p)};
+  const onSeg=(p,V,U)=>M._onEdge(p,V,U);
+  const built=[];
+  orig.forEach((f,fi)=>{
+    if(corner.has(fi)){const nf=[];for(let k=0;k<f.length;k++){const id=cid(fi,k);if(!nf.length||nf[nf.length-1]!==id)nf.push(id)}if(nf.length>1&&nf[0]===nf[nf.length-1])nf.pop();if(nf.length>=3&&new Set(nf).size>=3)built.push(nf);return}
+    const nf=[];
+    for(let k=0;k<f.length;k++){
+      const Vid=f[k],Pid=f[(k-1+f.length)%f.length],Nid=f[(k+1)%f.length];
+      const V=m.verts[Vid],P=m.verts[Pid],N=m.verts[Nid];
+      let onP=null,onN=null;
+      for(const [fj,pts] of corner){const g=orig[fj];const ki=g.indexOf(Vid);if(ki<0)continue;const p=pts[ki];if(onSeg(p,V,P))onP=p;else if(onSeg(p,V,N))onN=p}
+      const seq=[];if(onP)seq.push(idOf(onP));if(onN)seq.push(idOf(onN));if(!seq.length)seq.push(Vid);
+      for(const id of seq)if(!nf.length||nf[nf.length-1]!==id)nf.push(id);
+    }
+    if(nf.length>1&&nf[0]===nf[nf.length-1])nf.pop();
+    if(nf.length>=3&&new Set(nf).size>=3)built.push(nf);
+  });
+  m.faces=built;
+  const newFaces=[];
+  const bez=(A,B,V,t)=>{const u=1-t;return vadd(vadd(vmul(A,u*u),vmul(V,2*u*t)),vmul(B,t*t))};
+  const orient=(ids,ref)=>{let cn=[0,0,0];const rp=ids.map(i=>m.verts[i]);for(let i=0;i<rp.length;i++){const p=rp[i],q=rp[(i+1)%rp.length];cn[0]+=(p[1]-q[1])*(p[2]+q[2]);cn[1]+=(p[2]-q[2])*(p[0]+q[0]);cn[2]+=(p[0]-q[0])*(p[1]+q[1])}if(vdot(cn,ref)<0)ids.reverse();return ids};
+  for(const e of sel){
+    const FA=orig[e.fA],FB=orig[e.fB];
+    const iAa=FA.indexOf(e.a),iAb=FA.indexOf(e.b),iBa=FB.indexOf(e.a),iBb=FB.indexOf(e.b);
+    const prof=(id0,id1,V)=>{if(segs<=1)return[id0,id1];const P0=m.verts[id0],P1=m.verts[id1],ids=[id0];for(let j=1;j<segs;j++){ids.push(idOf(bez(P0,P1,V,j/segs)));fresh.add(ids[ids.length-1])}ids.push(id1);return ids};
+    const pA=prof(cid(e.fA,iAa),cid(e.fB,iBa),m0.verts[e.a]);
+    const pB=prof(cid(e.fA,iAb),cid(e.fB,iBb),m0.verts[e.b]);
+    const ref=vadd(M.normal(m0,orig[e.fA]),M.normal(m0,orig[e.fB]));
+    for(let j=0;j<segs;j++){const q=[pA[j],pA[j+1],pB[j+1],pB[j]].filter((x,i,a)=>i===0||x!==a[i-1]);if(q.length<3||new Set(q).size<3)continue;orient(q,ref);newFaces.push(m.faces.length);m.faces.push(q)}
+  }
+  M._fillFresh(m,fresh,m0.verts).forEach(i=>newFaces.push(i));
+  M.compact(m);
+  return{mesh:m,faces:newFaces.filter(i=>i<m.faces.length),skipped:keys.length-sel.length};
+};
+M.bevelMiter=function(m0,keys,w0,segs){
+  w0=Math.max(0,+w0||0); if(!(w0>0)) return null;
+  const closed=M.check(m0).closed;
+  const ok=r=>r&&(!closed||M.check(r.mesh).closed);
+  const full=M._bevelBuild(m0,keys,w0,segs);
+  if(ok(full)) return full;
+  let lo=0, hi=w0, best=null;
+  for(let i=0;i<18;i++){const mid=(lo+hi)/2, r=M._bevelBuild(m0,keys,mid,segs); if(ok(r)){best=r; lo=mid} else hi=mid}
+  return best;
+};
 /* BEVEL / CHAMFER edges (sequential; corners of any face-degree get a fan cap) */
 M.bevelOne=(m,key,w,segs)=>{const E=M.edges(m),e=E.get(key);if(!e||e.faces.length!==2)return null;
  const fA=m.faces.findIndex(f=>f.some((x,i)=>x===e.a&&f[(i+1)%f.length]===e.b)),fB=m.faces.findIndex(f=>f.some((x,i)=>x===e.b&&f[(i+1)%f.length]===e.a));if(fA<0||fB<0)return null;
@@ -387,7 +456,7 @@ M.bevelSet=(m0,keys,w0,segs)=>{
     newFaces.push(m.faces.length);m.faces.push(tri);filled++}}}
  M.compact(m);
  return{mesh:m,faces:newFaces,skipped:keys.length-sel.length,filled}};
-M.bevel=(m0,keys,w,segs)=>{if(keys.length>1){const rs=M.bevelSet(m0,keys,w,segs);if(rs)return rs}let m=M.clone(m0),pos=keys.map(k=>k.split('_').map(i=>m0.verts[+i])),strips=[],skipped=0;
+M.bevel=(m0,keys,w,segs)=>{const mit=M.bevelMiter(m0,keys,w,segs);if(mit)return mit;if(keys.length>1){const rs=M.bevelSet(m0,keys,w,segs);if(rs)return rs}let m=M.clone(m0),pos=keys.map(k=>k.split('_').map(i=>m0.verts[+i])),strips=[],skipped=0;
  for(const [p,q] of pos){const E=M.edges(m);let key=null;for(const [k,e] of E){const A=m.verts[e.a],B=m.verts[e.b];if((vlen(vsub(A,p))<1e-9&&vlen(vsub(B,q))<1e-9)||(vlen(vsub(A,q))<1e-9&&vlen(vsub(B,p))<1e-9)){key=k;break}}
   const r=key&&M.bevelOne(m,key,w,segs);if(!r){skipped++;continue}const before=m.faces.length;const map=M.compact(m);strips.push(...r)}
  if(!strips.length)return null;return{mesh:m,faces:strips,skipped}};
@@ -600,7 +669,7 @@ const OPS={
    if(S.sm==='e'){const r=M.extrudeEdges(m,[...S.es],p.amount);if(!r)return{err:'Edge extrude needs open (boundary) edges — use Face mode on solids'};const vs=new Set(r.verts);return{mesh:r.mesh,es:M.edgesFromVerts(r.mesh,vs),vs}}
    const r=M.extrudeVerts(m,[...S.vs],p.amount);return{mesh:r.mesh,vs:new Set(r.verts)}},need:'something'},
  inset:{title:'INSET FACES',params:[['t','Thickness',.01,.95,.01,.25],['depth','Depth',-1.5,1.5,.01,0]],run(m,p){if(S.sm!=='f'||!S.fs.size)return{err:'Select faces to inset'};const r=M.inset(m,[...S.fs],p.t,p.depth);return{mesh:r.mesh,fs:r.faces}}},
- bevel:{title:'BEVEL · CHAMFER',params:[['w','Width',.01,1.5,.01,.25],['segs','Segments',1,8,1,1]],run(m,p){if(S.sm!=='e'||!S.es.size)return{err:'Select edges to bevel (Edge mode)'};const r=M.bevel(m,[...S.es],p.w,p.segs|0);if(!r)return{err:'Bevel needs a closed edge between two faces'};return{mesh:r.mesh,fs:r.faces,skipped:r.skipped,toF:1}}},
+ bevel:{title:'BEVEL · CHAMFER',params:[['w','Width',.01,1.5,.01,.25],['segs','Segments',1,8,1,1]],run(m,p){let keys=null;if(S.sm==='f'&&S.fs.size){keys=[];for(const [k,e] of M.edges(m))if((e.faces||[]).some(fi=>S.fs.has(fi)))keys.push(k)}else if(S.sm==='e'&&S.es.size)keys=[...S.es];if(!keys||!keys.length)return{err:'Select edges or faces to bevel'};const r=M.bevel(m,keys,p.w,p.segs|0);if(!r)return{err:'Bevel needs a closed edge between two faces'};return{mesh:r.mesh,fs:r.faces,skipped:r.skipped,toF:1}}},
  loop:{title:'LOOP CUT',params:[['slide','Slide',.02,.98,.01,.5],['cuts','Cuts',1,8,1,1]],run(m,p,a){const r=M.loopCut(m,a.key,p.slide,p.cuts|0);if(!r)return{err:'Loop cut needs a ring of quads'};const vs=new Set(r.verts);return{mesh:r.mesh,vs,es:M.edgesFromVerts(r.mesh,vs),toE:1}}},
  subd:{title:'SUBDIVIDE',params:[],run(m){const fs=S.sm==='f'&&S.fs.size?[...S.fs]:M.facesFromVerts(m,selVerts());if(!fs.length)return{err:'Select faces to subdivide'};const r=M.subdivide(m,fs);return{mesh:r.mesh,fs:r.faces,toF:1}}},
  merge:{title:'MERGE',params:[],run(m){const r=M.merge(m,[...selVerts()]);if(!r)return{err:'Select 2+ vertices to merge'};return{mesh:r.mesh,vs:new Set(r.verts),toV:1}}},
@@ -619,7 +688,7 @@ function closeAdjust(){const was=!!S.adjust;S.adjust=null;$('adjust').hidden=tru
 /* object ops */
 function addPrim(kind){const host=activeLayer();push();if(host.visible===false)host.visible=true;const mk={cube:()=>M.cube(1),plane:()=>M.plane(1),cylinder:()=>M.cylinder(16,1,1),sphere:()=>M.sphere(16,8,1)}[kind]();const off=[orbit.t.x,orbit.t.y,0];mk.verts=mk.verts.map(v=>vadd(v,off));
  const n=kind[0].toUpperCase()+kind.slice(1);S.objs.push(newObj(n+' '+(S.objs.filter(o=>o.name.startsWith(n)).length+1),mk,host.id));S.active=S.objs.length-1;S.osel=host.locked?new Set():new Set([S.active]);if(S.mode==='edit'){if(host.locked){S.mode='object';clearSel()}else clearSel()}closeSheet();changed();toast('Added '+n+' · '+host.name+(host.locked?' (locked)':''))}
-function delObjects(){const ids=[...S.osel].filter(i=>S.objs[i]&&layerVisible(S.objs[i])&&!layerLocked(S.objs[i]));if(!ids.length)return toast(S.osel.size?'Layer is locked':'Select an object');push();const drop=new Set(ids);S.objs=S.objs.filter((_,i)=>!drop.has(i));S.osel.clear();S.active=Math.max(0,Math.min(S.active,S.objs.length-1));if(!S.objs.length)S.mode='object';changed()}
+function delObjects(){const ids=[...S.osel].filter(i=>S.objs[i]&&layerVisible(S.objs[i])&&!layerLocked(S.objs[i]));if(!ids.length)return toast(S.osel.size?'Layer is locked':'Select an object');push();const drop=new Set(ids);const counts=new Map();S.layers.forEach(l=>counts.set(l.id,0));S.objs.forEach((o,i)=>{if(!drop.has(i))counts.set(o.layer,(counts.get(o.layer)||0)+1)});S.objs=S.objs.filter((_,i)=>!drop.has(i));if(S.layers.length>1){const keep=S.layers.filter(l=>(counts.get(l.id)||0)>0);S.layers=keep.length?keep:[S.layers.find(l=>l.id===S.activeLayer)||S.layers[0]]}if(!S.layers.some(l=>l.id===S.activeLayer))S.activeLayer=S.layers[0].id;S.osel.clear();S.active=Math.max(0,Math.min(S.active,Math.max(0,S.objs.length-1)));if(!S.objs.length)S.mode='object';changed()}
 function dupObjects(){const ids=[...S.osel].filter(i=>S.objs[i]&&!layerLocked(S.objs[i]));if(!ids.length)return toast(S.osel.size?'Layer is locked':'Select an object');push();const ns=new Set();ids.forEach(i=>{const o=S.objs[i],m=M.clone(o.mesh);m.verts=m.verts.map(v=>vadd(v,[.5,.5,0]));S.objs.push(newObj(o.name+'.copy',m,o.layer));ns.add(S.objs.length-1)});S.osel=ns;S.active=[...ns].pop();S.tool='move';changed()}
 function setMode(md){if(md==='edit'){if(!S.objs.length)return toast('Add an object first');let idx=S.osel.size?[...S.osel][0]:S.active;const usable=i=>{const o=S.objs[i];return !!(o&&layerVisible(o)&&!layerLocked(o))};if(!usable(idx)){idx=S.objs.findIndex((_,i)=>usable(i));if(idx<0)return toast('Layer is locked or hidden')}S.active=idx;S.osel=new Set([idx]);clearSel()}closeAdjust();S.mode=md;if(!['select','move','rotate','scale'].includes(S.tool))S.tool='select';changed()}
 /* ---------- UI ---------- */
@@ -722,7 +791,7 @@ function galThumbURL(it){const key=it.date+'|'+it.name;if(GAL.cache.has(key))ret
  const TLF=[];
  const TL_MAX=240,TL_BYTES=1.8e6;let tlLast='';
  const r4=x=>Math.round(x*1e4)/1e4;
- function tlCapture(){return S.objs.map(o=>({v:o.mesh.verts.map(p=>p.map(r4)),f:o.mesh.faces.map(fc=>fc.slice()),h:layerVisible(o)?0:1}))}
+ function tlCapture(){return S.objs.map(o=>({v:o.mesh.verts.map(p=>p.map(r4)),f:o.mesh.faces.map(fc=>fc.slice())}))}
  function tlNormalize(raw){let a=raw;if(typeof a==='string'){try{a=JSON.parse(a)}catch(e){return []}}let frames=[];if(Array.isArray(a))frames=a;else if(a&&Array.isArray(a.f))frames=a.f;else return [];const out=[];for(const fr of frames){if(!Array.isArray(fr))continue;if(!fr.every(o=>o&&Array.isArray(o.v)&&Array.isArray(o.f)))continue;out.push(fr)}return out}
  function tlLoad(id){TLF.length=0;tlLast='';let raw=null;try{raw=BFStore.get('bf-tl:'+id)}catch(e){}tlNormalize(raw).forEach(fr=>TLF.push(fr));tlLast=TLF.length?JSON.stringify(TLF[TLF.length-1]):''}
  function tlBound(){if(TLF.length>TL_MAX){const first=TLF[0],last=TLF[TLF.length-1],interior=TLF.slice(1,-1),budget=TL_MAX-2,next=[first];if(budget>=interior.length)next.push(...interior);else if(budget>0){const used=new Set();for(let s=0;s<budget;s++){const idx=Math.round(s*(interior.length-1)/Math.max(1,budget-1));if(used.has(idx))continue;used.add(idx);next.push(interior[idx])}}next.push(last);TLF.length=0;next.forEach(fr=>TLF.push(fr))}
@@ -740,18 +809,18 @@ function galThumbURL(it){const key=it.date+'|'+it.name;if(GAL.cache.has(key))ret
   const gr=new THREE.GridHelper(40,40,0x2a3a48,0x16212c);gr.rotation.x=Math.PI/2;sc.add(gr);const g=new THREE.Group();sc.add(g);const c=new THREE.PerspectiveCamera(40,TW/THh,.05,500);c.up.set(0,0,1);
   const logo=new Image();logo.src=document.querySelector('link[rel=apple-touch-icon]').href;
   TL={r,gl,sc,g,c,logo,pos:0,play:false,spd:1,auto:true,o:{t:new THREE.Vector3(),r:9,th:-.8,ph:.45},endCard:0,lt:0,cache:{}};return TL}
- function tlFrameCam(){const pts=[];for(let fi=0;fi<TLF.length;fi++)TLF[fi].forEach(o=>{if(o.h)return;o.v.forEach(p=>pts.push(p))});if(!pts.length)for(let fi=0;fi<TLF.length;fi++)TLF[fi].forEach(o=>o.v.forEach(p=>pts.push(p)));if(!pts.length)return;const b=new THREE.Box3().setFromPoints(pts.map(p=>new THREE.Vector3(...p)));b.getCenter(TL.o.t);TL.o.r=Math.max(5,b.getSize(new THREE.Vector3()).length()*2.4)}
+ function tlFrameCam(){const pts=[];for(let fi=0;fi<TLF.length;fi++)TLF[fi].forEach(o=>o.v.forEach(p=>pts.push(p)));if(!pts.length)return;const b=new THREE.Box3().setFromPoints(pts.map(p=>new THREE.Vector3(...p)));b.getCenter(TL.o.t);TL.o.r=Math.max(5,b.getSize(new THREE.Vector3()).length()*2.4)}
  function tlPair(i){const key=i;if(TL.cache[key])return TL.cache[key];const A=TLF[i],B=TLF[Math.min(i+1,TLF.length-1)];
   const out=B.map((ob,oi)=>{const oa=A&&A[oi];let from;
    if(oa&&oa.v.length===ob.v.length&&JSON.stringify(oa.f)===JSON.stringify(ob.f))from=oa.v;
    else if(oa&&oa.v.length&&oa.v.length*ob.v.length<4e6)from=ob.v.map(p=>{let best=oa.v[0],bd=1e18;for(const q of oa.v){const d=(p[0]-q[0])**2+(p[1]-q[1])**2+(p[2]-q[2])**2;if(d<bd){bd=d;best=q}}return best});
    else{const c=(ob.v.length?ob.v:[]).reduce((s,pt)=>[s[0]+pt[0],s[1]+pt[1],s[2]+pt[2]],[0,0,0]).map(x=>x/(ob.v.length||1));from=ob.v.map(()=>c)}
-   return{f:ob.f,from,to:ob.v,h:ob.h?1:0,ha:oa&&oa.h?1:0}});TL.cache[key]=out;return out}
+   return{f:ob.f,from,to:ob.v}});TL.cache[key]=out;return out}
  const tlMat=new THREE.MeshStandardMaterial({color:0xa3adb5,roughness:.62,metalness:.05,flatShading:true,polygonOffset:true,polygonOffsetFactor:1,polygonOffsetUnits:1,side:THREE.DoubleSide}),tlLine=new THREE.LineBasicMaterial({color:0x14191f});
  function tlShow(pos){const T=tlInit();if(!TLF.length)return;const n=TLF.length;pos=Math.max(0,Math.min(n-1,pos));T.pos=pos;
   const i=Math.min(Math.floor(pos),n-1),fr=pos-i,t=fr<.35?0:Math.min(1,(fr-.35)/.65),e=t*t*(3-2*t);
   while(T.g.children.length){const c=T.g.children.pop();c.geometry.dispose()}
-  tlPair(i).forEach(o=>{if(e<=0?o.ha:o.h)return;const V=o.to.map((pt,k)=>{const a=o.from[k]||pt;return[a[0]+(pt[0]-a[0])*e,a[1]+(pt[1]-a[1])*e,a[2]+(pt[2]-a[2])*e]});
+  tlPair(i).forEach(o=>{const V=o.to.map((pt,k)=>{const a=o.from[k]||pt;return[a[0]+(pt[0]-a[0])*e,a[1]+(pt[1]-a[1])*e,a[2]+(pt[2]-a[2])*e]});
    const pos3=[];o.f.forEach(f=>{for(let j=1;j<f.length-1;j++)for(const k of[f[0],f[j],f[j+1]])if(V[k])pos3.push(...V[k])});const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos3,3));g.computeVertexNormals();T.g.add(new THREE.Mesh(g,tlMat));
    const lp=[],seen=new Set();o.f.forEach(f=>f.forEach((a,j)=>{const b=f[(j+1)%f.length],kk=a<b?a+'_'+b:b+'_'+a;if(!seen.has(kk)&&V[a]&&V[b]){seen.add(kk);lp.push(...V[a],...V[b])}}));const lg=new THREE.BufferGeometry();lg.setAttribute('position',new THREE.Float32BufferAttribute(lp,3));T.g.add(new THREE.LineSegments(lg,tlLine))});
   tlPaint();const sc=$('tlScrub');sc.min=0;sc.max=Math.max(0,n-1);sc.value=pos;$('tlCount').textContent=(Math.round(pos)+1)+' / '+n}
