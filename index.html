@@ -801,15 +801,63 @@ function galThumbURL(it){const key=it.date+'|'+it.name;if(GAL.cache.has(key))ret
  function tlRecord(){if(!bootReady||!fileId)return false;const added=tlEnsureEnd();if(added){tlStore();try{BFStore.flushSync([tlKey()])}catch(e){}}return added}
  function tlClear(){if(!fileId)fileId=makeId();TLF.length=0;tlLast='';tlRecord();persistOpen(true);toast('Timelapse reset')}
  function ensureLibIds(){const L=libList();if(!L.length)return;let ch=false;const seen=new Set();for(const it of L){if(!it||typeof it!=='object')continue;if(typeof it.id!=='string'||!it.id||seen.has(it.id)){it.id=makeId();ch=true}seen.add(it.id)}if(ch){BFStore.set('bf-lib',L);BFStore.flushSync(['bf-lib'])}}
- function dropLegacyTl(){let raw=null;try{raw=BFStore.get('bf-tl')}catch(e){}
-  if(raw!=null){let a=raw;if(typeof a==='string'){try{a=JSON.parse(a)}catch(e){a=null}}let frames=null,mixed=Array.isArray(a);if(a&&!Array.isArray(a)&&typeof a==='object'){if(Array.isArray(a.s)&&a.s.length>1)mixed=true;if(Array.isArray(a.f))frames=a.f}if(!mixed&&frames&&!TLF.length){tlNormalize(frames).forEach(fr=>TLF.push(fr));tlLast=TLF.length?JSON.stringify(TLF[TLF.length-1]):''}try{BFStore.del('bf-tl')}catch(e){}}}
+ /* Legacy recordings: older builds kept ONE shared buffer in 'bf-tl' ({f:frames,s:[{name,start}]}, or a bare frame array)
+    that was cut into "clips". Merge it into one continuous recording per saved scene, ending at that scene's own save.
+    'bf-tl' itself is never deleted; it stays as a backup and a flag stops the merge from running twice. */
+ function tlKeyOf(fr){try{return JSON.stringify(fr)}catch(e){return ''}}
+ function tlCapObjs(objs){return objs.map(o=>({v:o.mesh.verts.map(p=>p.map(r4)),f:o.mesh.faces.map(fc=>fc.slice())}))}
+ function tlCompactArr(a){const keep=TLF.splice(0);a.forEach(f=>TLF.push(f));try{tlBound()}catch(e){}const out=TLF.splice(0);keep.forEach(f=>TLF.push(f));return out}
+ function tlDedupe(a){const out=[];let last=null;for(const fr of a){const k=tlKeyOf(fr);if(k&&k!==last){out.push(fr);last=k}}return out}
+ function tlLegacyDetect(F){const vs=fr=>{const s=new Set();(fr||[]).forEach(o=>o.v.forEach(p=>s.add(p.join(','))));return s};const segs=[{name:'Scene 1',start:0}];let prev=null,prevSet=null,prevN=0;
+  for(let i=0;i<F.length;i++){const B=F[i];if(!B)continue;let bN=0;B.forEach(o=>bN+=o.v.length);const setB=vs(B);
+   if(prev){let hA=0,hB=0;prev.forEach(o=>o.v.forEach(p=>{if(setB.has(p.join(',')))hA++}));B.forEach(o=>o.v.forEach(p=>{if(prevSet.has(p.join(',')))hB++}));
+    const fA=prevN?hA/prevN:1,fB=bN?hB/bN:1,same=prev.length===1&&B.length===1&&JSON.stringify(prev[0].f)===JSON.stringify(B[0].f),fresh=B.length===1&&bN<=24&&prevN>=3*Math.max(1,bN);
+    if(!same&&((fB<.35&&fA<.6)||fresh))segs.push({name:'Scene '+(segs.length+1),start:i})}
+   prev=B;prevSet=setB;prevN=bN}return segs}
+ function tlLegacySegs(raw){let a=raw;if(typeof a==='string'){try{a=JSON.parse(a)}catch(e){return null}}let F=null,S0=null;
+  if(Array.isArray(a))F=a;else if(a&&typeof a==='object'&&Array.isArray(a.f)){F=a.f;if(Array.isArray(a.s))S0=a.s}else return null;
+  F=F.map(fr=>Array.isArray(fr)&&fr.length&&fr.every(o=>o&&Array.isArray(o.v)&&Array.isArray(o.f))?fr:null);if(!F.some(Boolean))return null;
+  let segs=[];if(S0&&S0.length){S0.forEach(x=>{if(x&&typeof x.start==='number')segs.push({name:''+(x.name||'Scene'),start:Math.max(0,Math.min(F.length-1,x.start|0))})});segs.sort((x,y)=>x.start-y.start)}else segs=tlLegacyDetect(F);
+  if(!segs.length||segs[0].start!==0)segs.unshift({name:'Scene 1',start:0});
+  return segs.map((x,k)=>{const end=k+1<segs.length?segs[k+1].start:F.length;const fr=F.slice(x.start,Math.max(x.start,end)).filter(Boolean);return{name:x.name,frames:fr,keys:fr.map(tlKeyOf)}}).filter(x=>x.frames.length)}
+ /* One scene's history out of the old clips: start at the FIRST frame that equals the scene's save (the save moment),
+    then walk back through the clips it continued from (a reopened scene starts with the frame it was saved as;
+    otherwise the most recent earlier clip with the same name, "Split here" copies included). */
+ function tlLegacyFor(segs,name,K){const norm=v=>String(v||'').trim().toLowerCase().replace(/\s*\(\d+\)$/,'');let hk=-1,hi=-1;
+  for(let k=0;k<segs.length&&hk<0;k++){const ks=segs[k].keys;for(let i=0;i<ks.length;i++)if(ks[i]===K){hk=k;hi=i;break}}
+  if(hk<0){for(let k=segs.length-1;k>=0;k--)if(name&&norm(segs[k].name)===norm(name)){hk=k;hi=segs[k].frames.length-1;break}}
+  if(hk<0)return [];
+  let out=segs[hk].frames.slice(0,hi+1),k=hk,guard=0;
+  while(k>0&&guard++<400){const first=segs[k].keys[0];let pj=-1,pi=-1;
+   for(let j=k-1;j>=0&&pj<0;j--){const ks=segs[j].keys;for(let i=ks.length-1;i>=0;i--)if(ks[i]===first){pj=j;pi=i;break}}
+   if(pj<0){const nm=norm(segs[k].name);for(let j=k-1;j>=0;j--)if(norm(segs[j].name)===nm){pj=j;pi=segs[j].frames.length-1;break}}
+   if(pj<0)break;out=segs[pj].frames.slice(0,pi+1).concat(out);k=pj}
+  return out}
+ function migrateLegacyTl(){let raw=null;try{raw=BFStore.get('bf-tl')}catch(e){}if(raw==null)return 0;if(BFStore.get('bf-tl-migrated'))return 0;
+  const segs=tlLegacySegs(raw);let n=0;
+  if(segs&&segs.length){const targets=[];const L=libList();L.forEach(it=>{if(!it||typeof it.id!=='string')return;let objs=null;try{objs=typeof it.scene==='string'?JSON.parse(it.scene):it.scene}catch(e){}if(Array.isArray(objs)&&objs.length)targets.push({id:it.id,name:it.name,objs})});
+   if(fileId&&!targets.some(t=>t.id===fileId)&&S.objs.length)targets.push({id:fileId,name:'',objs:S.objs,open:true});
+   for(const t of targets){try{const cap=tlCapObjs(t.objs),K=tlKeyOf(cap);let fr=tlLegacyFor(segs,t.name,K);
+     if(!fr.length&&t.open)fr=segs[segs.length-1].frames.slice();
+     if(!fr.length||tlKeyOf(fr[fr.length-1])!==K)fr.push(cap);
+     const ex=tlNormalize(BFStore.get('bf-tl:'+t.id));const out=tlCompactArr(tlDedupe(fr.concat(ex)));
+     if(out.length>ex.length||!ex.length){BFStore.set('bf-tl:'+t.id,{id:t.id,f:out,legacy:1});n++}}catch(e){console.warn('timelapse merge skipped',t&&t.name,e)}}}
+  BFStore.set('bf-tl-migrated',{at:Date.now(),scenes:n});try{BFStore.flushSync()}catch(e){}return n}
  let TL=null;const TW=720;let THh=1280;
  function tlInit(){if(TL)return TL;const gl=document.createElement('canvas');gl.width=TW;gl.height=THh;const r=new THREE.WebGLRenderer({canvas:gl,antialias:true,preserveDrawingBuffer:true});r.setClearColor(0x070d16);
   const sc=new THREE.Scene();sc.fog=new THREE.Fog(0x070d16,30,80);sc.add(new THREE.HemisphereLight(0xdfe8ef,0x1b232c,.85));const k=new THREE.DirectionalLight(0xffffff,.75);k.position.set(4,-6,9);sc.add(k);const rm=new THREE.DirectionalLight(0x9fdcea,.25);rm.position.set(-6,7,-3);sc.add(rm);
   const gr=new THREE.GridHelper(40,40,0x2a3a48,0x16212c);gr.rotation.x=Math.PI/2;sc.add(gr);const g=new THREE.Group();sc.add(g);const c=new THREE.PerspectiveCamera(40,TW/THh,.05,500);c.up.set(0,0,1);
   const logo=new Image();logo.src=document.querySelector('link[rel=apple-touch-icon]').href;
-  TL={r,gl,sc,g,c,logo,pos:0,play:false,spd:1,auto:true,o:{t:new THREE.Vector3(),r:9,th:-.8,ph:.45},endCard:0,lt:0,cache:{}};return TL}
- function tlFrameCam(){const pts=[];for(let fi=0;fi<TLF.length;fi++)TLF[fi].forEach(o=>o.v.forEach(p=>pts.push(p)));if(!pts.length)return;const b=new THREE.Box3().setFromPoints(pts.map(p=>new THREE.Vector3(...p)));b.getCenter(TL.o.t);TL.o.r=Math.max(5,b.getSize(new THREE.Vector3()).length()*2.4)}
+  TL={r,gl,sc,g,c,logo,grid:gr,rMin:1.5,rMax:120,exporting:false,pos:0,play:false,spd:1,auto:true,o:{t:new THREE.Vector3(),r:9,th:-.8,ph:.45},endCard:0,lt:0,cache:{}};return TL}
+ function tlFree(){const H=innerHeight||1;let top=0,bot=H;if(!document.body.classList.contains('clean')&&!(TL&&TL.exporting)){const a=$('tlTop'),b=$('tlBar');if(a){const r=a.getBoundingClientRect();if(r.height)top=Math.min(H*.35,r.bottom+36)}if(b){const r=b.getBoundingClientRect();if(r.height)bot=Math.max(H*.55,r.top-10)}}return{H,top,bot}}
+ function tlFrameCam(){const T=TL,o=T.o,b=new THREE.Box3(),v=new THREE.Vector3();let any=false;o.th=-.8;o.ph=.42;
+  const add=fr=>(fr||[]).forEach(ob=>ob.v.forEach(p=>{if(p&&isFinite(p[0])&&isFinite(p[1])&&isFinite(p[2])){b.expandByPoint(v.set(+p[0],+p[1],+p[2]));any=true}}));
+  for(let i=TLF.length-1;i>=0&&!any;i--)add(TLF[i]);
+  let rad=1;if(any){b.getCenter(o.t);rad=Math.max(.35,b.getSize(v).length()/2)}else o.t.set(0,0,0);
+  const f=tlFree(),vf=T.c.fov*Math.PI/360,vU=Math.atan(Math.tan(vf)*Math.max(.25,(f.bot-f.top)/f.H)),hf=Math.atan(Math.tan(vf)*T.c.aspect),half=Math.min(vU,hf);
+  o.r=rad/Math.sin(half)*1.06;T.fitR=o.r;T.rMin=Math.min(1.5,o.r*.25);T.rMax=Math.max(120,o.r*4);
+  const sc=T.sc;sc.fog.near=Math.max(30,o.r*3);sc.fog.far=Math.max(80,o.r*9);T.c.far=Math.max(500,o.r*30);T.c.near=Math.max(.01,Math.min(.05,o.r/400));T.c.updateProjectionMatrix();
+  if(T.grid){const gs=Math.max(1,rad/6);T.grid.scale.setScalar(gs);T.grid.position.set(Math.round(o.t.x/gs)*gs,Math.round(o.t.y/gs)*gs,any?Math.min(0,b.min.z):0)}}
  function tlPair(i){const key=i;if(TL.cache[key])return TL.cache[key];const A=TLF[i],B=TLF[Math.min(i+1,TLF.length-1)];
   const out=B.map((ob,oi)=>{const oa=A&&A[oi];let from;
    if(oa&&oa.v.length===ob.v.length&&JSON.stringify(oa.f)===JSON.stringify(ob.f))from=oa.v;
@@ -824,7 +872,7 @@ function galThumbURL(it){const key=it.date+'|'+it.name;if(GAL.cache.has(key))ret
    const pos3=[];o.f.forEach(f=>{for(let j=1;j<f.length-1;j++)for(const k of[f[0],f[j],f[j+1]])if(V[k])pos3.push(...V[k])});const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos3,3));g.computeVertexNormals();T.g.add(new THREE.Mesh(g,tlMat));
    const lp=[],seen=new Set();o.f.forEach(f=>f.forEach((a,j)=>{const b=f[(j+1)%f.length],kk=a<b?a+'_'+b:b+'_'+a;if(!seen.has(kk)&&V[a]&&V[b]){seen.add(kk);lp.push(...V[a],...V[b])}}));const lg=new THREE.BufferGeometry();lg.setAttribute('position',new THREE.Float32BufferAttribute(lp,3));T.g.add(new THREE.LineSegments(lg,tlLine))});
   tlPaint();const sc=$('tlScrub');sc.min=0;sc.max=Math.max(0,n-1);sc.value=pos;$('tlCount').textContent=(Math.round(pos)+1)+' / '+n}
- function tlPaint(){const T=TL,o=T.o;o.ph=Math.max(-1.5,Math.min(1.5,o.ph));const c=Math.cos(o.ph);T.c.position.set(o.t.x+o.r*c*Math.cos(o.th),o.t.y+o.r*c*Math.sin(o.th),o.t.z+o.r*Math.sin(o.ph));T.c.lookAt(o.t);
+ function tlPaint(){const T=TL,o=T.o;o.ph=Math.max(-1.5,Math.min(1.5,o.ph));{const f=tlFree(),off=Math.round((f.H/2-(f.top+f.bot)/2)/f.H*THh);if(off)T.c.setViewOffset(TW,THh,0,off,TW,THh);else if(T.c.view&&T.c.view.enabled)T.c.clearViewOffset()}const c=Math.cos(o.ph);T.c.position.set(o.t.x+o.r*c*Math.cos(o.th),o.t.y+o.r*c*Math.sin(o.th),o.t.z+o.r*Math.sin(o.ph));T.c.lookAt(o.t);
   T.r.render(T.sc,T.c);const x=$('tlC').getContext('2d');x.drawImage(T.gl,0,0);
   if(T.endCard>0){x.fillStyle=`rgba(7,13,22,${Math.min(1,T.endCard)})`;x.fillRect(0,0,TW,THh);x.globalAlpha=Math.min(1,T.endCard);const s=220;x.save();x.beginPath();x.roundRect?x.roundRect(TW/2-s/2,THh/2-s/2-60,s,s,44):x.rect(TW/2-s/2,THh/2-s/2-60,s,s);x.clip();x.drawImage(T.logo,TW/2-s/2,THh/2-s/2-60,s,s);x.restore();
    x.fillStyle='#edf2f5';x.font='600 64px -apple-system,Helvetica,Arial';x.textAlign='center';x.fillText(APP.name,TW/2,THh/2+130);x.fillStyle='#74dfed';x.font='500 28px -apple-system,Helvetica,Arial';x.fillText(TLF.length+' steps · made in '+APP.name,TW/2,THh/2+180);x.globalAlpha=1}
@@ -847,9 +895,9 @@ function galThumbURL(it){const key=it.date+'|'+it.name;if(GAL.cache.has(key))ret
   el.addEventListener('pointermove',e=>{if(!TL||!P.has(e.pointerId)||!g)return;const p=P.get(e.pointerId),dx=e.clientX-p.x,dy=e.clientY-p.y;
    if(P.size===1){if(g.type==='orbit'){TL.o.th-=dx*.008;TL.o.ph+=dy*.008}else pan(dx,dy);p.x=e.clientX;p.y=e.clientY}
    else{const [a,b]=[...P.values()],d0=Math.hypot(a.x-b.x,a.y-b.y),mx=(a.x+b.x)/2,my=(a.y+b.y)/2;p.x=e.clientX;p.y=e.clientY;const [c,d]=[...P.values()],d1=Math.hypot(c.x-d.x,c.y-d.y);
-    if(d1>0&&d0>0)TL.o.r=Math.max(1.5,Math.min(120,TL.o.r*d0/d1));pan((c.x+d.x)/2-mx,(c.y+d.y)/2-my)}lastTap=Math.abs(dx)+Math.abs(dy)>3?0:lastTap});
+    if(d1>0&&d0>0)TL.o.r=Math.max(TL.rMin,Math.min(TL.rMax,TL.o.r*d0/d1));pan((c.x+d.x)/2-mx,(c.y+d.y)/2-my)}lastTap=Math.abs(dx)+Math.abs(dy)>3?0:lastTap});
   const up=e=>{P.delete(e.pointerId);if(!P.size)g=null;else g={type:'none'}};el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);el.addEventListener('contextmenu',e=>e.preventDefault());
-  el.addEventListener('wheel',e=>{if(!TL)return;e.preventDefault();tlSetAuto(false);TL.o.r=Math.max(1.5,Math.min(120,TL.o.r*Math.exp(e.deltaY*.0015)))},{passive:false})})();
+  el.addEventListener('wheel',e=>{if(!TL)return;e.preventDefault();tlSetAuto(false);TL.o.r=Math.max(TL.rMin,Math.min(TL.rMax,TL.o.r*Math.exp(e.deltaY*.0015)))},{passive:false})})();
  $('tlClose').onclick=closeTL;$('tlPlay').onclick=()=>tlSetPlay(!TL.play);$('tlAuto').onclick=()=>tlSetAuto(!TL.auto);
  $('tlScrub').oninput=e=>{if(!TL)return;tlSetPlay(false);TL.pos=+e.target.value;tlShow(TL.pos)};
  document.querySelectorAll('#tlSpd button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#tlSpd button').forEach(x=>x.classList.toggle('on',x===b));if(TL)TL.spd=+b.dataset.s});
@@ -857,12 +905,12 @@ function galThumbURL(it){const key=it.date+'|'+it.name;if(GAL.cache.has(key))ret
  function pickVideoType(){if(!window.MediaRecorder||!HTMLCanvasElement.prototype.captureStream)return null;return['video/mp4;codecs=avc1','video/mp4;codecs=avc3','video/mp4','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'].find(t=>{try{return MediaRecorder.isTypeSupported(t)}catch(_){return false}})||null}
  async function tlExport(){if(!TL||!TLF.length)return;const btn=$('tlExp'),old=btn.textContent;const mt=pickVideoType();if(!mt){toast('Video recording not supported in this browser');return null}
   btn.disabled=true;tlSetPlay(false);const n=TLF.length,c=$('tlC'),st=c.captureStream(30),rec=new MediaRecorder(st,{mimeType:mt,videoBitsPerSecond:6e6}),ch=[];rec.ondataavailable=e=>{if(e.data&&e.data.size)ch.push(e.data)};
-  const done=new Promise(r=>rec.onstop=r);try{TL.pos=0;TL.cache={};rec.start(250);
+  const done=new Promise(r=>rec.onstop=r);try{TL.exporting=true;tlFrameCam();TL.pos=0;TL.cache={};rec.start(250);
    tlSetPlay(true);while(TL.play){btn.textContent='Recording '+Math.round(TL.pos/Math.max(1,n-1)*100)+'%';await tlSleep(100)}
    await tlSleep(500);for(let k=0;k<=20;k++){TL.endCard=k/20;await tlSleep(40)}await tlSleep(1800);rec.stop();await done;st.getTracks().forEach(t=>t.stop());
    const type=mt.split(';')[0],blob=new Blob(ch,{type}),ext=type==='video/mp4'?'mp4':'webm';window.__lastExport={type,size:blob.size,frames:n};
    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=APP.name.replace(/\W+/g,'-')+'-timelapse.'+ext;document.body.append(a);a.click();a.remove();toast('Video saved ('+ext.toUpperCase()+')');return window.__lastExport}
-  catch(e){try{rec.stop()}catch(_){}toast('Export failed: '+e.message);return null}finally{if(TL)TL.endCard=0;btn.disabled=false;btn.textContent=old}}
+  catch(e){try{rec.stop()}catch(_){}toast('Export failed: '+e.message);return null}finally{if(TL){TL.endCard=0;if(TL.exporting){TL.exporting=false;tlFrameCam()}}btn.disabled=false;btn.textContent=old}}
  $('tlExp').onclick=tlExport;
 
  /* ---------- boot ---------- */
@@ -876,11 +924,11 @@ function galThumbURL(it){const key=it.date+'|'+it.name;if(GAL.cache.has(key))ret
    else fileId=makeId();
    if(!S.objs.length)S.objs=[newObj('Cube 1',M.cube())];
    try{ensureLibIds()}catch(e){}
+   try{migrateLegacyTl()}catch(e){console.warn('timelapse merge failed',e)}
    try{tlLoad(fileId)}catch(e){TLF.length=0;tlLast=''}
-   try{dropLegacyTl()}catch(e){}
    try{tlEnsureEnd()}catch(e){}
    {const vis=S.objs.findIndex(o=>o&&layerVisible(o)&&!layerLocked(o));S.active=vis>=0?vis:0;S.osel=new Set(vis>=0?[vis]:[])}bootReady=true;changed(false);try{commitOpenFile()}catch(e){}ui();galOpen();window.BF_READY=true}).catch(err=>{console.error(err);bootReady=true;if(!fileId)fileId=makeId();window.BF_READY=true})})();
- window.BF={store:BFStore,libList,saveLib,storageNote,TLF,fileId:()=>fileId,newScene,openSavedFile,tlClear,commitOpenFile,tlSegs:()=>[{name:'file',start:0,frames:TLF.length}],tlRecord,openTL,closeTL,tlShow,tlExport,tlSetAuto,tlSetPlay,pickVideoType,get TL(){return TL},S,M,H,cam,gCam,orbit,runOp,setMode,setSM,selectAll,undo,redo,addPrim,tapSelect,proj,pick,snapView,draw,render,rebuild,ui,toOBJ:()=>M.toOBJ(S.objs),check:()=>M.check(act().mesh),gizmoRect,frame,setClean,applyLayers};
+ window.BF={store:BFStore,libList,saveLib,storageNote,TLF,fileId:()=>fileId,newScene,openSavedFile,tlClear,commitOpenFile,tlSegs:()=>[{name:'file',start:0,frames:TLF.length}],migrateLegacyTl,tlFrameCam,tlLegacySegs,tlRecord,openTL,closeTL,tlShow,tlExport,tlSetAuto,tlSetPlay,pickVideoType,get TL(){return TL},S,M,H,cam,gCam,orbit,runOp,setMode,setSM,selectAll,undo,redo,addPrim,tapSelect,proj,pick,snapView,draw,render,rebuild,ui,toOBJ:()=>M.toOBJ(S.objs),check:()=>M.check(act().mesh),gizmoRect,frame,setClean,applyLayers};
 
 /* ---------- journal ---------- */
 const JT={note:'Note',how:'How it should work',bug:'Bug'};
