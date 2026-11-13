@@ -19,6 +19,12 @@ header{position:absolute;top:calc(6px + var(--top));left:10px;right:10px;height:
 #modebar{position:absolute;top:calc(66px + var(--top));left:10px;display:flex;flex-direction:column;gap:8px;z-index:4}
 .seg{display:flex;border-radius:16px;padding:3px;gap:2px}.seg button{font-size:12px;font-weight:600;padding:0 12px}
 #selbar button{width:46px}
+#orientSeg button{padding:0 9px;font-size:11px;letter-spacing:.2px;min-height:36px}
+#propBar{display:flex;align-items:center;gap:4px;border-radius:16px;padding:3px}
+#propBar button{font-size:11px;font-weight:700;letter-spacing:.5px;padding:0 10px;min-height:36px}
+#falloff{height:36px;border-radius:12px;border:1px solid var(--line);background:#0d141e;color:var(--ink);font:600 11px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:0 6px;max-width:108px}
+#propPanel{position:absolute;left:10px;right:10px;bottom:calc(88px + var(--safe));border-radius:18px;padding:6px 12px 4px;z-index:6}
+#propPanel .hint{margin:0 0 2px;font-size:10px;color:var(--muted);letter-spacing:.2px}
 #sidebar{position:absolute;top:calc(176px + var(--top));left:10px;display:flex;flex-direction:column;border-radius:16px;padding:3px;z-index:4}#sidebar button{font-size:10px;font-weight:600;width:52px}
 #rail{position:absolute;bottom:calc(10px + var(--safe));left:10px;right:10px;height:70px;border-radius:20px;display:flex;gap:2px;padding:4px;overflow-x:auto;scrollbar-width:none;z-index:5}#rail::-webkit-scrollbar{display:none}
 #rail button{flex:0 0 58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:10px}
@@ -125,7 +131,7 @@ input[type=range]{flex:1;accent-color:#74dfed;height:34px}
 .lmove button{flex:none;padding:0 14px;border-radius:12px;background:#74dfed22;color:var(--blue);font-weight:650}
 #cleanExit{display:none;position:fixed;top:calc(12px + var(--top));right:12px;z-index:40;min-width:44px;height:44px;padding:0 12px;border-radius:14px;background:#141c268c;border:1px solid #d7e2eb3d;color:#edf2f5cc;font-size:13px;font-weight:700;letter-spacing:.8px;align-items:center;justify-content:center;opacity:.8;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
 body.clean #cleanExit{display:flex}
-body.clean header,body.clean #modebar,body.clean #sidebar,body.clean #rail,body.clean #adjust,body.clean #status,body.clean #toast,body.clean #sheetWrap,body.clean #layerWrap,body.clean #jWrap,body.clean #tlTop,body.clean #tlBar{display:none!important}
+body.clean header,body.clean #modebar,body.clean #sidebar,body.clean #rail,body.clean #adjust,body.clean #propPanel,body.clean #status,body.clean #toast,body.clean #sheetWrap,body.clean #layerWrap,body.clean #jWrap,body.clean #tlTop,body.clean #tlBar{display:none!important}
 </style></head><body>
 <canvas id="view"></canvas><canvas id="ov"></canvas>
 <header class="glass"><div id="brand"><img id="logo" alt=""><span id="appName">BlockForm</span></div>
@@ -133,10 +139,13 @@ body.clean header,body.clean #modebar,body.clean #sidebar,body.clean #rail,body.
 <button id="redo" aria-label="Redo"><svg class="i" viewBox="0 0 24 24"><path d="m15 6 5 5-5 5m5-5H10a6 6 0 0 0-6 6"/></svg></button>
 <button id="menuBtn" aria-label="Menu"><svg class="i" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button></header>
 <div id="modebar"><div class="seg glass" id="modeSeg"><button data-mode="object">Object</button><button data-mode="edit">Edit</button></div>
-<div class="seg glass" id="selbar"><button data-sm="v" aria-label="Vertex select"><svg class="i" viewBox="0 0 24 24"><path d="M4 18 12 5l8 13Z" opacity=".45"/><circle cx="12" cy="5" r="2.6" fill="currentColor"/></svg></button><button data-sm="e" aria-label="Edge select"><svg class="i" viewBox="0 0 24 24"><path d="M4 18 12 5l8 13Z" opacity=".45"/><path d="M4 18 12 5" stroke-width="3"/></svg></button><button data-sm="f" aria-label="Face select"><svg class="i" viewBox="0 0 24 24"><path d="M4 18 12 5l8 13Z" fill="currentColor" fill-opacity=".45"/></svg></button></div></div>
+<div class="seg glass" id="selbar"><button data-sm="v" aria-label="Vertex select"><svg class="i" viewBox="0 0 24 24"><path d="M4 18 12 5l8 13Z" opacity=".45"/><circle cx="12" cy="5" r="2.6" fill="currentColor"/></svg></button><button data-sm="e" aria-label="Edge select"><svg class="i" viewBox="0 0 24 24"><path d="M4 18 12 5l8 13Z" opacity=".45"/><path d="M4 18 12 5" stroke-width="3"/></svg></button><button data-sm="f" aria-label="Face select"><svg class="i" viewBox="0 0 24 24"><path d="M4 18 12 5l8 13Z" fill="currentColor" fill-opacity=".45"/></svg></button></div>
+<div class="seg glass" id="orientSeg" role="group" aria-label="Transform orientation"><button type="button" data-orient="global" aria-label="Global axes">Global</button><button type="button" data-orient="local" aria-label="Local axes">Local</button><button type="button" data-orient="normal" aria-label="Normal axes">Normal</button></div>
+<div class="glass" id="propBar" hidden><button type="button" id="propBtn" aria-label="Proportional editing" aria-pressed="false">Prop</button><select id="falloff" aria-label="Proportional falloff" hidden><option value="smooth">Smooth</option><option value="sharp">Sharp</option><option value="linear">Linear</option><option value="constant">Constant</option></select></div></div>
 <div id="sidebar" class="glass"><button id="layersBtn" aria-label="Layers">LAYERS</button><button id="cleanBtn" aria-label="Clean view">CLEAN</button><button id="multi">MULTI</button><button id="selAll">ALL</button><button id="selNone">NONE</button><button id="frame">FRAME</button><button id="xray">X-RAY</button></div>
 <nav id="rail" class="glass"></nav>
 <section id="adjust" class="glass" hidden></section>
+<section id="propPanel" class="glass" hidden><p class="hint">Radius · pinch while dragging · scroll wheel</p><label class="row"><span>Radius</span><input id="propR" type="range" min="0.05" max="6" step="0.01" value="1" aria-label="Proportional radius"><b id="propRV">1.00</b></label></section>
 <div id="status"></div><div id="toast" class="glass"></div>
 <div id="sheetWrap" hidden><section id="sheet" class="glass"></section></div>
 <div id="gal" hidden><div id="galTop"><img id="galLogo" alt=""><div class="gt"><b>Gallery</b><span id="galCount"></span></div><button id="galNew" class="glass">+ New scene</button></div><div id="galBody"></div><div id="galBar" class="glass"><button id="galSave">Save current</button><button id="galFolder">+ Folder</button><button id="galEnter">Enter scene →</button></div></div><div id="tl" hidden><canvas id="tlC" width="720" height="1280"></canvas>
@@ -209,8 +218,16 @@ M.extrudeEdges=(m0,keys,d)=>{const m=M.clone(m0),E=M.edges(m),nv=new Map(),out=[
  for(const [x,o] of nv)m.verts[o.i]=vadd(m.verts[x],vmul(vnorm(o.d),d));
  const nf=out.map(([b,a])=>[b,a,nv.get(a).i,nv.get(b).i]),start=m.faces.length;m.faces.push(...nf);
  if(!nf.length)return null;return{mesh:m,verts:[...nv.values()].map(o=>o.i),skipped}};
-/* EXTRUDE VERTS -> wire edges */
-M.extrudeVerts=(m0,vids,d)=>{const m=M.clone(m0),nv=[];for(const v of vids){const i=m.verts.length;m.verts.push(vadd(m.verts[v],[0,0,d]));m.wires.push([v,i]);nv.push(i)}return{mesh:m,verts:nv}};
+/* EXTRUDE VERTS -> wire edges. dirs is an optional unit direction per vertex; default is world +Z. */
+M.extrudeVerts=(m0,vids,d,dirs)=>{const m=M.clone(m0),nv=[];for(const v of vids){const i=m.verts.length;const dir=dirs&&dirs[v]?dirs[v]:[0,0,1];m.verts.push(vadd(m.verts[v],vmul(dir,d)));m.wires.push([v,i]);nv.push(i)}return{mesh:m,verts:nv}};
+/* Average face normal at each vertex (world +Z if a vertex has none). */
+M.vertNormals=m=>{const n=m.verts.map(()=>[0,0,0]);m.faces.forEach(f=>{const fn=M.normal(m,f);f.forEach(i=>{n[i]=vadd(n[i],fn)})});return n.map(v=>vlen(v)<1e-8?[0,0,1]:vnorm(v))};
+/* EXTRUDE INDIVIDUAL FACES: each face moves along its own normal and gets its own side walls.
+   Shared vertices are split, so a closed mesh stays closed (each boundary edge is paired). */
+M.extrudeIndividual=(m0,fids,d)=>{const m=M.clone(m0),F=[...new Set(fids)].filter(fi=>m.faces[fi]&&m.faces[fi].length>=3);if(!F.length)return null;if(Math.abs(d)<1e-8)return{mesh:m,faces:F};
+ for(const fi of F){const f=m.faces[fi].slice(),n=M.normal(m,f),nv=f.map(a=>{m.verts.push(vadd(m.verts[a],vmul(n,d)));return m.verts.length-1});
+  for(let i=0;i<f.length;i++){const j=(i+1)%f.length;m.faces.push([f[i],f[j],nv[j],nv[i]])}m.faces[fi]=nv}
+ M.compact(m);return{mesh:m,faces:F}};
 /* INSET individual faces */
 /* Inset and bevel corners are the intersection of adjacent edges offset inward
    by the width. That point lies on the angle bisector at distance width/sin(half-angle).
@@ -543,8 +560,12 @@ rotate:'<path d="M20 12a8 8 0 1 1-3-6.2"/><path d="M20 4v5h-5"/>',scale:'<path d
 inset:'<rect x="3" y="3" width="18" height="18" rx="1"/><rect x="8" y="8" width="8" height="8"/><path d="M3 3l5 5M21 3l-5 5M3 21l5-5M21 21l-5-5"/>',bevel:'<path d="M3 21V9l6-6h12"/><path d="M3 9h6V3" opacity=".5"/>',
 loop:'<rect x="3" y="5" width="18" height="14" rx="1"/><path d="M12 5v14" stroke-dasharray="2 2"/>',subd:'<rect x="3" y="3" width="18" height="18" rx="1"/><path d="M12 3v18M3 12h18"/>',
 merge:'<path d="M5 5l7 7 7-7M12 12v9"/>',del:'<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',add:'<path d="M12 4v16M4 12h16"/>',dup:'<rect x="8" y="8" width="12" height="12" rx="1"/><path d="M4 16V4h12"/>'};
-const S={objs:[],active:0,mode:'object',sm:'f',tool:'select',multi:false,xray:false,vs:new Set(),es:new Set(),fs:new Set(),osel:new Set([0]),adjust:null,layers:[{id:1,name:'Layer 1',visible:true,locked:false}],activeLayer:1};
-let uid=1,lidSeq=1,layerDel=0;const newObj=(name,mesh,layer)=>{if(!S.layers.length)applyLayers(null);let lid=layer!=null?+layer:+S.activeLayer;if(!S.layers.some(l=>l.id===lid))lid=S.layers[0].id;return {id:uid++,name,mesh,layer:lid}};
+function bfPref(k){try{return sessionStorage.getItem(k)}catch(e){return null}}
+const _orient0=bfPref('bf-orient'),_fall0=bfPref('bf-falloff'),_pr0=+bfPref('bf-propr');
+const S={objs:[],active:0,mode:'object',sm:'f',tool:'select',multi:false,xray:false,vs:new Set(),es:new Set(),fs:new Set(),osel:new Set([0]),adjust:null,layers:[{id:1,name:'Layer 1',visible:true,locked:false}],activeLayer:1,
+ orient:(_orient0==='local'||_orient0==='normal'||_orient0==='global')?_orient0:'global',prop:bfPref('bf-prop')==='1',falloff:['smooth','sharp','linear','constant'].includes(_fall0)?_fall0:'smooth',propR:(isFinite(_pr0)&&_pr0>=0.05&&_pr0<=20)?_pr0:1};
+let uid=1,lidSeq=1,layerDel=0;const newObj=(name,mesh,layer)=>{if(!S.layers.length)applyLayers(null);let lid=layer!=null?+layer:+S.activeLayer;if(!S.layers.some(l=>l.id===lid))lid=S.layers[0].id;return {id:uid++,name,mesh,layer:lid,basis:[[1,0,0],[0,1,0],[0,0,1]]}};
+function saveXformPrefs(){try{sessionStorage.setItem('bf-orient',S.orient);sessionStorage.setItem('bf-prop',S.prop?'1':'0');sessionStorage.setItem('bf-falloff',S.falloff);sessionStorage.setItem('bf-propr',String(S.propR))}catch(e){}}
 /* ---------- history ---------- */
 const H={u:[],r:[]};const snap=()=>JSON.stringify({objs:S.objs,active:S.active,mode:S.mode,vs:[...S.vs],es:[...S.es],fs:[...S.fs],osel:[...S.osel],layers:S.layers,activeLayer:S.activeLayer});
 function restore(j){const d=JSON.parse(j);S.objs=d.objs;S.active=d.active;S.mode=d.mode;S.vs=new Set(d.vs);S.es=new Set(d.es);S.fs=new Set(d.fs);S.osel=new Set(d.osel);applyLayers(d);uid=Math.max(1,...S.objs.map(o=>o.id+1))}
@@ -599,7 +620,7 @@ function frame(){const pts=[];if(S.mode==='edit'&&S.objs[S.active]&&layerVisible
 let raf=0;function draw(){if(!raf)raf=requestAnimationFrame(render)}
 function render(){raf=0;if(VW&&(innerWidth!==VW||innerHeight!==VH))resize();if(anim)anim();applyCam();const w=innerWidth,h=innerHeight;R.setViewport(0,0,w,h);R.setScissorTest(false);R.clear();R.render(scene,cam);
  if(!document.body.classList.contains('clean')){const g=gizmoRect();R.clearDepth();R.setScissorTest(true);R.setScissor(g.x,h-g.y-g.h,g.w,g.h);R.setViewport(g.x,h-g.y-g.h,g.w,g.h);R.render(gScene,gCam);R.setScissorTest(false)}drawOverlay();if(anim)draw()}
-let VW=0,VH=0;function resize(){const w=innerWidth,h=innerHeight;VW=w;VH=h;R.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();const o=$('ov');o.width=w*devicePixelRatio;o.height=h*devicePixelRatio;draw()}addEventListener('resize',resize);addEventListener('orientationchange',()=>setTimeout(resize,80));if(window.visualViewport)visualViewport.addEventListener('resize',resize);addEventListener('pageshow',()=>setTimeout(resize,80));document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(resize,80)});setTimeout(resize,300);setTimeout(resize,1000);
+let VW=0,VH=0;function resize(){const w=innerWidth,h=innerHeight;VW=w;VH=h;R.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();const o=$('ov');o.width=w*devicePixelRatio;o.height=h*devicePixelRatio;try{placeSidebar();placeProp()}catch(e){}draw()}addEventListener('resize',resize);addEventListener('orientationchange',()=>setTimeout(resize,80));if(window.visualViewport)visualViewport.addEventListener('resize',resize);addEventListener('pageshow',()=>setTimeout(resize,80));document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(resize,80)});setTimeout(resize,300);setTimeout(resize,1000);
 /* ---------- selection helpers ---------- */
 const act=()=>S.objs[S.active];
 function selVerts(){const m=act()?.mesh;if(!m)return new Set();if(S.sm==='v')return new Set(S.vs);if(S.sm==='e'){const s=new Set();S.es.forEach(k=>k.split('_').forEach(i=>s.add(+i)));return s}const s=new Set();S.fs.forEach(fi=>(m.faces[fi]||[]).forEach(i=>s.add(i)));return s}
@@ -625,49 +646,109 @@ function tapSelect(x,y){const g=gizmoRect();if(!document.body.classList.contains
  if(S.sm!=='v'){const m=act().mesh;S.vs=selVerts()}rebuild();ui()}
 /* ---------- transform handles ---------- */
 const AX=[[1,0,0,'#e7b787','X'],[0,1,0,'#74dfed','Y'],[0,0,1,'#c5e3ec','Z']];
+function basisOf(o){const b=o&&o.basis;if(!b||b.length!==3||b.some(v=>!v||v.length<3))return[[1,0,0],[0,1,0],[0,0,1]];return b}
+function frameFromZ(n){const z=vnorm(n);const ref=Math.abs(z[2])<0.9?[0,0,1]:[1,0,0];const x=vnorm(vcross(ref,z));const y=vnorm(vcross(z,x));return[x,y,z]}
+function vertNormalAt(m,i){let n=[0,0,0];m.faces.forEach(f=>{if(f.includes(i))n=vadd(n,M.normal(m,f))});return vlen(n)<1e-8?[0,0,1]:vnorm(n)}
+/* Per-vertex orthonormal frame. Selected faces/edges use that element's normal; everyone else uses the vertex normal. */
+function buildFrames(mesh){const faceN=mesh.faces.map(f=>M.normal(mesh,f));const edgeFaces=new Map();
+ if(S.sm==='e'&&S.es.size){const E=M.edges(mesh);S.es.forEach(k=>{const e=E.get(k);if(!e)return;[e.a,e.b].forEach(vi=>{if(!edgeFaces.has(vi))edgeFaces.set(vi,[]);e.faces.forEach(fi=>edgeFaces.get(vi).push(fi))})})}
+ const frames=new Map();
+ for(let i=0;i<mesh.verts.length;i++){let n=[0,0,0],used=false;
+  if(S.sm==='f'&&S.fs.size)mesh.faces.forEach((f,fi)=>{if(f.includes(i)&&S.fs.has(fi)){n=vadd(n,faceN[fi]);used=true}});
+  else if(S.sm==='e'&&edgeFaces.has(i))edgeFaces.get(i).forEach(fi=>{if(faceN[fi]){n=vadd(n,faceN[fi]);used=true}});
+  if(!used)mesh.faces.forEach((f,fi)=>{if(f.includes(i))n=vadd(n,faceN[fi])});
+  if(vlen(n)<1e-8)n=[0,0,1];frames.set(i,frameFromZ(vnorm(n)))}
+ return frames}
+function orientAxes(){let B=[[1,0,0],[0,1,0],[0,0,1]];
+ if(S.orient!=='global'){if(S.mode==='object'){const i=[...S.osel].find(k=>S.objs[k]&&layerVisible(S.objs[k])&&!layerLocked(S.objs[k]));B=basisOf(i!=null?S.objs[i]:act())}
+  else{const m=act()?.mesh;let n=null;if(m&&S.sm==='f'&&S.fs.size){const fi=[...S.fs].pop();if(m.faces[fi])n=M.normal(m,m.faces[fi])}
+   else if(m&&S.sm==='e'&&S.es.size){const e=M.edges(m).get([...S.es].pop());if(e){let a=[0,0,0];e.faces.forEach(fi=>{if(m.faces[fi])a=vadd(a,M.normal(m,m.faces[fi]))});if(vlen(a)>1e-6)n=vnorm(a)}}
+   else if(m){const vs=[...selVerts()];if(vs.length)n=vertNormalAt(m,vs[vs.length-1])}
+   if(n&&vlen(n)>1e-6)B=frameFromZ(vnorm(n))}}
+ return B.map((d,i)=>({d:vnorm(d),col:AX[i][3],n:AX[i][4]}))}
 function pivot(){if(S.mode==='object'){const ids=[...S.osel].filter(i=>S.objs[i]&&layerVisible(S.objs[i])&&!layerLocked(S.objs[i]));if(!ids.length)return null;let pts=[];ids.forEach(i=>pts.push(...S.objs[i].mesh.verts));return pts.length?pts.reduce((a,p)=>vadd(a,vmul(p,1/pts.length)),[0,0,0]):null}
  const o=act();if(!o||!layerVisible(o)||layerLocked(o))return null;const vs=[...selVerts()];return vs.length?M.center(o.mesh,vs):null}
 function handles(){if(document.body.classList.contains('clean')||!['move','rotate','scale'].includes(S.tool))return null;const p=pivot();if(!p)return null;const c=proj(p);if(c.z>1)return null;const dist=new THREE.Vector3(...p).distanceTo(cam.position),len=dist*.16;
- return{p,c,len,ax:AX.map(a=>{const e=proj(vadd(p,vmul(a,len)));return{d:[a[0],a[1],a[2]],col:a[3],n:a[4],e}})}}
+ return{p,c,len,ax:orientAxes().map(a=>{const e=proj(vadd(p,vmul(a.d,len)));return{d:a.d,col:a.col,n:a.n,e}})}}
 function drawSel(x){if(S.mode!=='edit'||!act()||!pickMeshes[S.active])return;const m=act().mesh,vs=selVerts();if(!vs.size)return;x.strokeStyle='#8af0ff';x.lineWidth=2.5;x.lineCap='round';x.beginPath();
  for(const [k,e] of M.edges(m)){if(!(vs.has(e.a)&&vs.has(e.b)))continue;if(S.sm==='e'&&!S.es.has(k))continue;if(!visible(vlerp(m.verts[e.a],m.verts[e.b],.5)))continue;const a=proj(m.verts[e.a]),b=proj(m.verts[e.b]);if(a.z>1||b.z>1)continue;x.moveTo(a.x,a.y);x.lineTo(b.x,b.y)}x.stroke();
  if(S.sm==='v'){x.fillStyle='#8af0ff';vs.forEach(i=>{if(!visible(m.verts[i]))return;const a=proj(m.verts[i]);x.beginPath();x.arc(a.x,a.y,5,0,7);x.fill()})}}
-function drawOverlay(){const o=$('ov'),x=o.getContext('2d');x.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);x.clearRect(0,0,innerWidth,innerHeight);if(document.body.classList.contains('clean'))return;pickMeshes.forEach(p=>{if(p)p.updateMatrixWorld()});drawSel(x);const h=handles();if(!h)return;
+function drawPropCircle(x){if(S.mode!=='edit'||!S.prop||!['move','rotate','scale'].includes(S.tool))return;const p=pivot();if(!p)return;const c=proj(p);if(c.z>1)return;
+ const dist=new THREE.Vector3(...p).distanceTo(cam.position),wpp=2*dist*Math.tan(cam.fov*Math.PI/360)/innerHeight,pr=S.propR/Math.max(1e-6,wpp);
+ x.save();x.beginPath();x.arc(c.x,c.y,Math.max(1,pr),0,Math.PI*2);x.setLineDash([6,5]);x.strokeStyle='#74dfed';x.lineWidth=1.75;x.stroke();x.setLineDash([]);
+ x.fillStyle='#74dfed';x.font='11px ui-monospace,monospace';x.textAlign='center';x.fillText(S.falloff+'  r '+S.propR.toFixed(2),c.x,c.y+pr+16);x.restore()}
+function drawOverlay(){const o=$('ov'),x=o.getContext('2d');x.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);x.clearRect(0,0,innerWidth,innerHeight);if(document.body.classList.contains('clean'))return;pickMeshes.forEach(p=>{if(p)p.updateMatrixWorld()});drawSel(x);drawPropCircle(x);const h=handles();if(!h)return;
  x.lineCap='round';for(const a of h.ax){x.strokeStyle=a.col;x.lineWidth=TD&&TD.ax===a.n?5:3;x.beginPath();x.moveTo(h.c.x,h.c.y);x.lineTo(a.e.x,a.e.y);x.stroke();x.fillStyle=a.col;x.beginPath();
   if(S.tool==='scale')x.rect(a.e.x-8,a.e.y-8,16,16);else if(S.tool==='rotate'){x.arc(a.e.x,a.e.y,10,0,7);}else{x.arc(a.e.x,a.e.y,9,0,7)}x.fill();x.fillStyle='#070d16';x.font='700 10px -apple-system,sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText(a.n,a.e.x,a.e.y+.5)}
- x.strokeStyle='#edf2f5';x.lineWidth=2;x.beginPath();x.arc(h.c.x,h.c.y,14,0,7);x.stroke();if(TD&&TD.label){x.fillStyle='#edf2f5';x.font='12px ui-monospace,monospace';x.textAlign='center';x.fillText(TD.label,h.c.x,h.c.y-30)}}
+ x.strokeStyle='#edf2f5';x.lineWidth=2;x.beginPath();x.arc(h.c.x,h.c.y,14,0,7);x.stroke();
+ x.fillStyle=S.orient==='global'?'#91a0aa':'#74dfed';x.font='700 10px -apple-system,sans-serif';x.textAlign='center';x.fillText(S.orient==='normal'?'NORMAL':S.orient==='local'?'LOCAL':'GLOBAL',h.c.x,h.c.y+32);
+ if(TD&&TD.label){x.fillStyle='#edf2f5';x.font='12px ui-monospace,monospace';x.textAlign='center';x.fillText(TD.label,h.c.x,h.c.y-30)}}
 let TD=null;
+function propFall(dist,radius){if(dist<=1e-8)return 1;if(!(radius>0)||dist>=radius)return 0;const t=1-dist/radius;if(S.falloff==='linear')return t;if(S.falloff==='sharp')return t*t;if(S.falloff==='constant')return 1;return t*t*(3-2*t)}
+function propWeightMap(verts,ids){const w=new Map();if(!ids||!ids.length)return w;if(!S.prop||S.mode!=='edit'){ids.forEach(i=>w.set(i,1));return w}
+ const have=new Set(ids),sel=ids.map(i=>verts[i]).filter(Boolean);
+ for(let i=0;i<verts.length;i++){if(have.has(i)){w.set(i,1);continue}let bd=1e18;const p=verts[i];for(const s of sel){const d=vlen(vsub(p,s));if(d<bd)bd=d}const wt=propFall(bd,S.propR);if(wt>0)w.set(i,wt)}
+ return w}
+function weightedOrig(base,ids){return [...propWeightMap(base,ids).entries()].map(([i,wt])=>[i,base[i].slice(),wt])}
 function hitHandle(x,y){const h=handles();if(!h)return null;let best=null,bd=30;for(const a of h.ax){const d=Math.hypot(a.e.x-x,a.e.y-y);if(d<bd){bd=d;best=a}}if(best)return{h,a:best};if(Math.hypot(h.c.x-x,h.c.y-y)<26)return{h,a:null};return null}
-function beginTransform(hh,x,y){push();const ids=S.mode==='object'?null:[...selVerts()];TD={x0:x,y0:y,h:hh.h,ax:hh.a?hh.a.n:'free',a:hh.a,ids,orig:S.mode==='object'?[...S.osel].map(i=>[i,S.objs[i].mesh.verts.map(v=>v.slice())]):ids.map(i=>[i,act().mesh.verts[i].slice()])}}
-function moveTransform(x,y){const T=TD,h=T.h,dx=x-T.x0,dy=y-T.y0,dist=new THREE.Vector3(...h.p).distanceTo(cam.position),wpp=2*dist*Math.tan(cam.fov*Math.PI/360)/innerHeight;let fn,label;
+function beginTransform(hh,x,y){push();const edit=S.mode!=='object';const ids=edit?[...selVerts()]:null;let base=null,frames=null,orig;
+ if(edit){const m=act().mesh;base=m.verts.map(v=>v.slice());frames=buildFrames(m);orig=weightedOrig(base,ids)}
+ else{const oids=[...S.osel].filter(i=>S.objs[i]&&layerVisible(S.objs[i])&&!layerLocked(S.objs[i]));orig=oids.map(i=>[i,S.objs[i].mesh.verts.map(v=>v.slice()),basisOf(S.objs[i]).map(v=>v.slice())])}
+ TD={x0:x,y0:y,lx:x,ly:y,h:hh.h,ax:hh.a?hh.a.n:'free',a:hh.a,ids,orig,edit,base,frames,sig:(S.prop?1:0)+'|'+S.falloff+'|'+S.propR.toFixed(4)}}
+function axisIndex(ax){return ax==='X'?0:ax==='Y'?1:ax==='Z'?2:-1}
+function applyEditXform(T,k,s,ang,off,mode){const m=act().mesh;if(!m)return;const local=S.orient!=='global',ai=axisIndex(T.ax),pivot=T.h.p;
+ for(const [i,orig,wt0] of T.orig){const wt=wt0==null?1:wt0;if(wt<=0){m.verts[i]=orig.slice();continue}const fr=T.frames&&T.frames.get(i);
+  if(mode==='move'){let dlt;if(off)dlt=off;else if(local&&fr&&ai>=0)dlt=vmul(fr[ai],k);else dlt=vmul(T.a.d,k);m.verts[i]=vadd(orig,vmul(dlt,wt))}
+  else if(mode==='scale'){const r=vsub(orig,pivot);let r2;if(!T.a)r2=vmul(r,1+(s-1)*wt);else if(local&&fr&&ai>=0){const comps=fr.map(ax=>vdot(r,ax));comps[ai]*=1+(s-1)*wt;r2=[0,0,0];fr.forEach((ax,j)=>{r2=vadd(r2,vmul(ax,comps[j]))})}else{const f=1+(s-1)*wt;r2=r.map((c,j)=>T.a.d[j]?c*f:c)}m.verts[i]=vadd(pivot,r2)}
+  else{const angW=ang*wt;let q;if(!T.a)q=new THREE.Quaternion().setFromAxisAngle(cam.getWorldDirection(new THREE.Vector3()),-angW);else if(local&&fr&&ai>=0)q=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(...fr[ai]),angW);else q=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(...T.a.d),angW);
+   const rv=new THREE.Vector3(...vsub(orig,pivot)).applyQuaternion(q);m.verts[i]=vadd(pivot,[rv.x,rv.y,rv.z])}}}
+function applyObjectXform(T,k,s,ang,off,mode){const local=S.orient!=='global',ai=axisIndex(T.ax),pivot=T.h.p;
+ T.orig.forEach(([i,vs,basis])=>{const o=S.objs[i];if(!o)return;const B=(basis&&basis.length===3)?basis:[[1,0,0],[0,1,0],[0,0,1]];
+  if(mode==='move'){let dlt;if(off)dlt=off;else if(local)dlt=vmul(vnorm(B[ai]),k);else dlt=vmul(T.a.d,k);o.mesh.verts=vs.map(v=>vadd(v,dlt));o.basis=B.map(v=>v.slice())}
+  else if(mode==='scale'){o.mesh.verts=vs.map(v=>{const r=vsub(v,pivot);if(!T.a)return vadd(pivot,vmul(r,s));if(local){const comps=B.map(ax=>vdot(r,vnorm(ax)));comps[ai]*=s;let r2=[0,0,0];B.forEach((ax,j)=>{r2=vadd(r2,vmul(vnorm(ax),comps[j]))});return vadd(pivot,r2)}return vadd(pivot,r.map((c,j)=>T.a.d[j]?c*s:c))});o.basis=B.map(v=>v.slice())}
+  else{let axis,sign=1;if(!T.a){axis=cam.getWorldDirection(new THREE.Vector3());sign=-1}else if(local)axis=new THREE.Vector3(...vnorm(B[ai]));else axis=new THREE.Vector3(...T.a.d);
+   const q=new THREE.Quaternion().setFromAxisAngle(axis,ang*sign);o.mesh.verts=vs.map(v=>{const r=new THREE.Vector3(...vsub(v,pivot)).applyQuaternion(q);return vadd(pivot,[r.x,r.y,r.z])});o.basis=B.map(v=>{const r=new THREE.Vector3(...v).applyQuaternion(q);return[r.x,r.y,r.z]})}})}
+function moveTransform(x,y){const T=TD;if(!T)return;T.lx=x;T.ly=y;
+ if(T.edit){const sig=(S.prop?1:0)+'|'+S.falloff+'|'+S.propR.toFixed(4);if(T.sig!==sig){T.sig=sig;T.orig=weightedOrig(T.base,T.ids)}}
+ const h=T.h,dx=x-T.x0,dy=y-T.y0,dist=new THREE.Vector3(...h.p).distanceTo(cam.position),wpp=2*dist*Math.tan(cam.fov*Math.PI/360)/innerHeight;let k=0,s=1,ang=0,off=null,mode,label;
  if(T.a){const sx=T.a.e.x-h.c.x,sy=T.a.e.y-h.c.y,sl=Math.hypot(sx,sy)||1,along=(dx*sx+dy*sy)/sl;
-  if(S.tool==='move'){const k=along/sl*h.len;fn=v=>vadd(v,vmul(T.a.d,k));label=T.ax+' '+k.toFixed(2)}
-  else if(S.tool==='scale'){const s=Math.max(.01,1+along/120);fn=v=>{const r=vsub(v,h.p);return vadd(h.p,r.map((c,i)=>T.a.d[i]?c*s:c))};label=T.ax+' ×'+s.toFixed(2)}
-  else{const ang=(dx-dy)/90;const q=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(...T.a.d),ang);fn=v=>{const r=new THREE.Vector3(...vsub(v,h.p)).applyQuaternion(q);return vadd(h.p,[r.x,r.y,r.z])};label=T.ax+' '+(ang*180/Math.PI).toFixed(0)+'°'}}
- else{if(S.tool==='move'){const r=new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld,0),u=new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld,1);const off=r.multiplyScalar(dx*wpp).add(u.multiplyScalar(-dy*wpp));fn=v=>vadd(v,[off.x,off.y,off.z]);label='free'}
-  else if(S.tool==='scale'){const s=Math.max(.01,1+(dx-dy)/150);fn=v=>vadd(h.p,vmul(vsub(v,h.p),s));label='×'+s.toFixed(2)}
-  else{const ang=(dx-dy)/90,q=new THREE.Quaternion().setFromAxisAngle(cam.getWorldDirection(new THREE.Vector3()),-ang);fn=v=>{const r=new THREE.Vector3(...vsub(v,h.p)).applyQuaternion(q);return vadd(h.p,[r.x,r.y,r.z])};label=(ang*180/Math.PI).toFixed(0)+'°'}}
- T.label=label;if(S.mode==='object')T.orig.forEach(([i,vs])=>S.objs[i].mesh.verts=vs.map(fn));else{const m=act().mesh;T.orig.forEach(([i,v])=>m.verts[i]=fn(v))}rebuild()}
+  if(S.tool==='move'){k=along/sl*h.len;label=T.ax+' '+k.toFixed(2);mode='move'}
+  else if(S.tool==='scale'){s=Math.max(.01,1+along/120);label=T.ax+' ×'+s.toFixed(2);mode='scale'}
+  else{ang=(dx-dy)/90;label=T.ax+' '+(ang*180/Math.PI).toFixed(0)+'°';mode='rot'}}
+ else if(S.tool==='move'){const r=new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld,0),u=new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld,1);const o=r.multiplyScalar(dx*wpp).add(u.multiplyScalar(-dy*wpp));off=[o.x,o.y,o.z];label='free';mode='move'}
+ else if(S.tool==='scale'){s=Math.max(.01,1+(dx-dy)/150);label='×'+s.toFixed(2);mode='scale'}
+ else{ang=(dx-dy)/90;label=(ang*180/Math.PI).toFixed(0)+'°';mode='rot'}
+ if(S.prop&&T.edit)label+='  r'+S.propR.toFixed(2);
+ T.label=label;if(T.edit)applyEditXform(T,k,s,ang,off,mode);else applyObjectXform(T,k,s,ang,off,mode);rebuild()}
+function endTransform(){if(!TD)return;TD=null;if(G&&G.type==='xf')G=null;changed()}
+function syncPropUI(){const r=$('propR'),b=$('propRV');if(r){const mx=Math.max(6,+S.propR||0);if(+r.max<mx)r.max=String(mx);r.value=S.propR}if(b)b.textContent=(+S.propR).toFixed(2);const f=$('falloff');if(f&&f.value!==S.falloff)f.value=S.falloff}
 /* ---------- input ---------- */
 const P=new Map();let G=null,lastCleanTap=0;
-canvas.addEventListener('pointerdown',e=>{canvas.setPointerCapture(e.pointerId);P.set(e.pointerId,{x:e.clientX,y:e.clientY});
- if(P.size===1){const hh=hitHandle(e.clientX,e.clientY);if(hh){beginTransform(hh,e.clientX,e.clientY);G={type:'xf'};return}G={type:'tap',x:e.clientX,y:e.clientY,th:orbit.th,ph:orbit.ph,t:performance.now()}}
- else if(P.size===2){if(G&&G.type==='xf'){TD=null;changed()}const [a,b]=[...P.values()];G={type:'two',d:Math.hypot(a.x-b.x,a.y-b.y),m:{x:(a.x+b.x)/2,y:(a.y+b.y)/2},r:orbit.r,t:orbit.t.clone()}}});
+canvas.addEventListener('pointerdown',e=>{try{canvas.setPointerCapture(e.pointerId)}catch(err){}P.set(e.pointerId,{x:e.clientX,y:e.clientY});
+ if(P.size===1){const hh=hitHandle(e.clientX,e.clientY);if(hh){beginTransform(hh,e.clientX,e.clientY);G={type:'xf',pid:e.pointerId};return}G={type:'tap',x:e.clientX,y:e.clientY,th:orbit.th,ph:orbit.ph,t:performance.now()}}
+ else if(P.size===2){const pts=[...P.values()],d=Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y);
+  if(G&&G.type==='xf'&&TD&&S.prop&&S.mode==='edit'){G.pinch={d:Math.max(1,d),r:S.propR};return}
+  if(G&&G.type==='xf'){TD=null;changed()}
+  const [a,b]=pts;G={type:'two',d:d||1,m:{x:(a.x+b.x)/2,y:(a.y+b.y)/2},r:orbit.r,t:orbit.t.clone()}}});
 canvas.addEventListener('pointermove',e=>{if(!P.has(e.pointerId))return;P.set(e.pointerId,{x:e.clientX,y:e.clientY});if(!G)return;
- if(G.type==='xf'&&TD){moveTransform(e.clientX,e.clientY);return}
+ if(G.type==='xf'&&TD){if(G.pinch&&P.size>=2&&S.prop){const pts=[...P.values()],d=Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y);const nr=Math.max(0.05,Math.min(20,G.pinch.r*(d/G.pinch.d)));if(Math.abs(nr-S.propR)>1e-4){S.propR=nr;saveXformPrefs();syncPropUI()}}
+  const dp=P.get(G.pid);if(dp)moveTransform(dp.x,dp.y);return}
  if(G.type==='tap'||G.type==='orbit'){const dx=e.clientX-G.x,dy=e.clientY-G.y;if(G.type==='tap'&&Math.hypot(dx,dy)>7)G.type='orbit',document.body.classList.add('nav');if(G.type==='orbit'){orbit.th=G.th-dx*.0085;orbit.ph=G.ph+dy*.0085;draw()}}
  else if(G.type==='two'&&P.size>=2){const [a,b]=[...P.values()],d=Math.hypot(a.x-b.x,a.y-b.y),m={x:(a.x+b.x)/2,y:(a.y+b.y)/2};orbit.r=Math.max(.3,Math.min(200,G.r*G.d/(d||1)));
   const wpp=2*orbit.r*Math.tan(cam.fov*Math.PI/360)/innerHeight,rt=new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld,0),up=new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld,1);
   orbit.t.copy(G.t).add(rt.multiplyScalar(-(m.x-G.m.x)*wpp)).add(up.multiplyScalar((m.y-G.m.y)*wpp));draw()}});
-const up=e=>{if(!P.has(e.pointerId))return;P.delete(e.pointerId);if(!G)return;if(G.type==='tap'&&P.size===0&&performance.now()-G.t<600){if(document.body.classList.contains('clean')){const now=performance.now();if(now-lastCleanTap<340){lastCleanTap=0;setClean(false);G=null;document.body.classList.remove('nav');draw();return}lastCleanTap=now}tapSelect(G.x,G.y)}
- if(G.type==='xf'){TD=null;changed()}if(P.size===0){G=null;document.body.classList.remove('nav');draw()}else if(G.type==='two')G={type:'none'}};
+const up=e=>{if(!P.has(e.pointerId))return;const dragUp=!!(G&&G.type==='xf'&&G.pid===e.pointerId);P.delete(e.pointerId);if(!G)return;
+ if(G.type==='tap'&&P.size===0&&performance.now()-G.t<600){if(document.body.classList.contains('clean')){const now=performance.now();if(now-lastCleanTap<340){lastCleanTap=0;setClean(false);G=null;document.body.classList.remove('nav');draw();return}lastCleanTap=now}tapSelect(G.x,G.y)}
+ if(G.type==='xf'){if(dragUp||P.size===0){endTransform();document.body.classList.remove('nav');draw();return}if(P.size<2)G.pinch=null;return}
+ if(P.size===0){G=null;document.body.classList.remove('nav');draw()}else if(G.type==='two')G={type:'none'}};
 canvas.addEventListener('pointerup',up);canvas.addEventListener('pointercancel',up);
-canvas.addEventListener('wheel',e=>{e.preventDefault();orbit.r=Math.max(.3,Math.min(200,orbit.r*Math.exp(e.deltaY*.0015)));draw()},{passive:false});
+canvas.addEventListener('wheel',e=>{if(TD&&S.prop&&S.mode==='edit'){e.preventDefault();S.propR=Math.max(0.05,Math.min(20,S.propR*Math.exp(-e.deltaY*0.0012)));saveXformPrefs();syncPropUI();moveTransform(TD.lx,TD.ly);return}e.preventDefault();orbit.r=Math.max(.3,Math.min(200,orbit.r*Math.exp(e.deltaY*.0015)));draw()},{passive:false});
+addEventListener('keydown',e=>{if(e.metaKey||e.ctrlKey||e.altKey)return;const tag=e.target&&e.target.tagName;if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT')return;if(e.key==='o'||e.key==='O'){if(S.mode!=='edit')return;e.preventDefault();setProp(!S.prop)}});
 /* ---------- operations with live adjust panel ---------- */
 const OPS={
- extrude:{title:'EXTRUDE',params:[['amount','Distance',-3,3,.01,.6]],run(m,p){if(S.sm==='f'){const r=M.extrudeFaces(m,[...S.fs],p.amount);return r&&{mesh:r.mesh,fs:r.faces}}
+ extrude:{title:'EXTRUDE',params:[['amount','Distance',-3,3,.01,.6]],run(m,p){const indiv=S.orient!=='global';if(S.sm==='f'){const r=indiv?M.extrudeIndividual(m,[...S.fs],p.amount):M.extrudeFaces(m,[...S.fs],p.amount);return r&&{mesh:r.mesh,fs:r.faces}}
    if(S.sm==='e'){const r=M.extrudeEdges(m,[...S.es],p.amount);if(!r)return{err:'Edge extrude needs open (boundary) edges — use Face mode on solids'};const vs=new Set(r.verts);return{mesh:r.mesh,es:M.edgesFromVerts(r.mesh,vs),vs}}
-   const r=M.extrudeVerts(m,[...S.vs],p.amount);return{mesh:r.mesh,vs:new Set(r.verts)}},need:'something'},
+   const r=M.extrudeVerts(m,[...S.vs],p.amount,indiv?M.vertNormals(m):null);return{mesh:r.mesh,vs:new Set(r.verts)}},need:'something'},
  inset:{title:'INSET FACES',params:[['t','Thickness',.01,.95,.01,.25],['depth','Depth',-1.5,1.5,.01,0]],run(m,p){if(S.sm!=='f'||!S.fs.size)return{err:'Select faces to inset'};const r=M.inset(m,[...S.fs],p.t,p.depth);return{mesh:r.mesh,fs:r.faces}}},
  bevel:{title:'BEVEL · CHAMFER',params:[['w','Width',.01,1.5,.01,.25],['segs','Segments',1,8,1,1]],run(m,p){let keys=null;if(S.sm==='f'&&S.fs.size){keys=[];for(const [k,e] of M.edges(m))if((e.faces||[]).some(fi=>S.fs.has(fi)))keys.push(k)}else if(S.sm==='e'&&S.es.size)keys=[...S.es];if(!keys||!keys.length)return{err:'Select edges or faces to bevel'};const r=M.bevel(m,keys,p.w,p.segs|0);if(!r)return{err:'Bevel needs a closed edge between two faces'};return{mesh:r.mesh,fs:r.faces,skipped:r.skipped,toF:1}}},
  loop:{title:'LOOP CUT',params:[['slide','Slide',.02,.98,.01,.5],['cuts','Cuts',1,8,1,1]],run(m,p,a){const r=M.loopCut(m,a.key,p.slide,p.cuts|0);if(!r)return{err:'Loop cut needs a ring of quads'};const vs=new Set(r.verts);return{mesh:r.mesh,vs,es:M.edgesFromVerts(r.mesh,vs),toE:1}}},
@@ -681,30 +762,38 @@ function runOp(name,args={}){closeAdjust(true);if(S.mode!=='edit'||!act()){toast
  const base={mesh:M.clone(act().mesh),sm:S.sm,vs:new Set(S.vs),es:new Set(S.es),fs:new Set(S.fs)};const r=op.run(base.mesh,p,args);if(!r||r.err){toast(r?r.err:'Nothing to do');return false}
  push();applyResult(r);if(r.skipped)toast(r.skipped+' edge(s) skipped');S.adjust={name,op,p,args,base};showAdjust();changed();return true}
 function rerun(){const A=S.adjust;if(!A)return;S.sm=A.base.sm;S.vs=new Set(A.base.vs);S.es=new Set(A.base.es);S.fs=new Set(A.base.fs);const r=A.op.run(M.clone(A.base.mesh),A.p,A.args);if(r&&!r.err){applyResult(r);changed()}}
-function showAdjust(){const A=S.adjust,el=$('adjust');if(!A||!A.op.params.length){el.hidden=true;return}el.innerHTML=`<h3>${A.op.title}<button id="adjOk">Done</button></h3>`;
+function showAdjust(){const A=S.adjust,el=$('adjust');if(!A||!A.op.params.length){el.hidden=true;placeProp();return}const title=A.name==='extrude'?(S.orient==='global'?'EXTRUDE · GLOBAL':'EXTRUDE · INDIVIDUAL'):A.op.title;el.innerHTML=`<h3>${title}<button id="adjOk">Done</button></h3>`;
  A.op.params.forEach(([k,l,mn,mx,st])=>{const row=document.createElement('label');row.className='row';row.innerHTML=`<span>${l}</span><input type=range min=${mn} max=${mx} step=${st} value=${A.p[k]} data-k=${k}><b>${(+A.p[k]).toFixed(st<1?2:0)}</b>`;
-  row.querySelector('input').oninput=e=>{A.p[k]=+e.target.value;row.querySelector('b').textContent=(+e.target.value).toFixed(st<1?2:0);rerun()};el.append(row)});el.hidden=false;$('adjOk').onclick=()=>closeAdjust()}
-function closeAdjust(){const was=!!S.adjust;S.adjust=null;$('adjust').hidden=true;if(was)tlRecord()}
+  row.querySelector('input').oninput=e=>{A.p[k]=+e.target.value;row.querySelector('b').textContent=(+e.target.value).toFixed(st<1?2:0);rerun()};el.append(row)});el.hidden=false;$('adjOk').onclick=()=>closeAdjust();placeProp()}
+function closeAdjust(){const was=!!S.adjust;S.adjust=null;$('adjust').hidden=true;placeProp();if(was)tlRecord()}
 /* object ops */
 function addPrim(kind){const host=activeLayer();push();if(host.visible===false)host.visible=true;const mk={cube:()=>M.cube(1),plane:()=>M.plane(1),cylinder:()=>M.cylinder(16,1,1),sphere:()=>M.sphere(16,8,1)}[kind]();const off=[orbit.t.x,orbit.t.y,0];mk.verts=mk.verts.map(v=>vadd(v,off));
  const n=kind[0].toUpperCase()+kind.slice(1);S.objs.push(newObj(n+' '+(S.objs.filter(o=>o.name.startsWith(n)).length+1),mk,host.id));S.active=S.objs.length-1;S.osel=host.locked?new Set():new Set([S.active]);if(S.mode==='edit'){if(host.locked){S.mode='object';clearSel()}else clearSel()}closeSheet();changed();toast('Added '+n+' · '+host.name+(host.locked?' (locked)':''))}
 function delObjects(){const ids=[...S.osel].filter(i=>S.objs[i]&&layerVisible(S.objs[i])&&!layerLocked(S.objs[i]));if(!ids.length)return toast(S.osel.size?'Layer is locked':'Select an object');push();const drop=new Set(ids);const counts=new Map();S.layers.forEach(l=>counts.set(l.id,0));S.objs.forEach((o,i)=>{if(!drop.has(i))counts.set(o.layer,(counts.get(o.layer)||0)+1)});S.objs=S.objs.filter((_,i)=>!drop.has(i));if(S.layers.length>1){const keep=S.layers.filter(l=>(counts.get(l.id)||0)>0);S.layers=keep.length?keep:[S.layers.find(l=>l.id===S.activeLayer)||S.layers[0]]}if(!S.layers.some(l=>l.id===S.activeLayer))S.activeLayer=S.layers[0].id;S.osel.clear();S.active=Math.max(0,Math.min(S.active,Math.max(0,S.objs.length-1)));if(!S.objs.length)S.mode='object';changed()}
-function dupObjects(){const ids=[...S.osel].filter(i=>S.objs[i]&&!layerLocked(S.objs[i]));if(!ids.length)return toast(S.osel.size?'Layer is locked':'Select an object');push();const ns=new Set();ids.forEach(i=>{const o=S.objs[i],m=M.clone(o.mesh);m.verts=m.verts.map(v=>vadd(v,[.5,.5,0]));S.objs.push(newObj(o.name+'.copy',m,o.layer));ns.add(S.objs.length-1)});S.osel=ns;S.active=[...ns].pop();S.tool='move';changed()}
+function dupObjects(){const ids=[...S.osel].filter(i=>S.objs[i]&&!layerLocked(S.objs[i]));if(!ids.length)return toast(S.osel.size?'Layer is locked':'Select an object');push();const ns=new Set();ids.forEach(i=>{const o=S.objs[i],m=M.clone(o.mesh);m.verts=m.verts.map(v=>vadd(v,[.5,.5,0]));const c=newObj(o.name+'.copy',m,o.layer);c.basis=basisOf(o).map(v=>v.slice());S.objs.push(c);ns.add(S.objs.length-1)});S.osel=ns;S.active=[...ns].pop();S.tool='move';changed()}
 function setMode(md){if(md==='edit'){if(!S.objs.length)return toast('Add an object first');let idx=S.osel.size?[...S.osel][0]:S.active;const usable=i=>{const o=S.objs[i];return !!(o&&layerVisible(o)&&!layerLocked(o))};if(!usable(idx)){idx=S.objs.findIndex((_,i)=>usable(i));if(idx<0)return toast('Layer is locked or hidden')}S.active=idx;S.osel=new Set([idx]);clearSel()}closeAdjust();S.mode=md;if(!['select','move','rotate','scale'].includes(S.tool))S.tool='select';changed()}
 /* ---------- UI ---------- */
 function btn(id,label,icon,fn,cls=''){const b=document.createElement('button');b.id='t-'+id;b.className=cls;b.innerHTML=`<svg class="i" viewBox="0 0 24 24">${IC[icon]}</svg>${label}`;b.onclick=fn;return b}
+function setOrient(o){if(o!=='global'&&o!=='local'&&o!=='normal')return;if(o!==S.orient){S.orient=o;saveXformPrefs();toast(o==='global'?'Global — world axes':o==='local'?'Local — each element on its own axis':'Normal — each face along its own normal');if(S.adjust&&S.adjust.name==='extrude'){rerun();showAdjust();draw();return}}ui();draw()}
+function setProp(on){if(S.mode!=='edit'){toast('Proportional editing works in Edit mode');return}on=!!on;if(on!==S.prop){S.prop=on;saveXformPrefs();toast(S.prop?'Proportional editing on':'Proportional editing off');if(TD&&TD.edit){TD.sig='';moveTransform(TD.lx,TD.ly)}}ui();draw()}
+function placeSidebar(){const mb=$('modebar'),sb=$('sidebar');if(!mb||!sb||document.body.classList.contains('clean'))return;const r=mb.getBoundingClientRect();sb.style.top=(r.bottom+8)+'px'}
+function placeProp(){const el=$('propPanel'),st=$('status');if(!el)return;const show=S.mode==='edit'&&S.prop&&!document.body.classList.contains('clean');el.hidden=!show;if(!show){if(st)st.style.bottom='';return}const adj=$('adjust');const extra=(adj&&!adj.hidden)?adj.offsetHeight+8:0;el.style.bottom='calc('+(88+extra)+'px + var(--safe))';if(st)st.style.bottom='calc('+(88+extra+el.offsetHeight+8)+'px + var(--safe))'}
 function ui(){$('appName').textContent=APP.name;document.querySelectorAll('#modeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.mode===S.mode));$('selbar').hidden=S.mode!=='edit';
- document.querySelectorAll('#selbar button').forEach(b=>b.classList.toggle('on',b.dataset.sm===S.sm));$('multi').classList.toggle('on',S.multi);$('xray').classList.toggle('on',S.xray);$('xray').hidden=S.mode!=='edit';
- $('sidebar').style.top=S.mode==='edit'?'':'calc(122px + var(--top))';$('undo').disabled=!H.u.length;$('redo').disabled=!H.r.length;
+ document.querySelectorAll('#selbar button').forEach(b=>b.classList.toggle('on',b.dataset.sm===S.sm));document.querySelectorAll('#orientSeg button').forEach(b=>b.classList.toggle('on',b.dataset.orient===S.orient));
+ $('propBar').hidden=S.mode!=='edit';$('propBtn').classList.toggle('on',!!S.prop);$('propBtn').setAttribute('aria-pressed',S.prop?'true':'false');$('falloff').hidden=S.mode!=='edit'||!S.prop;syncPropUI();
+ $('multi').classList.toggle('on',S.multi);$('xray').classList.toggle('on',S.xray);$('xray').hidden=S.mode!=='edit';
+ $('undo').disabled=!H.u.length;$('redo').disabled=!H.r.length;
  const r=$('rail');r.innerHTML='';const tool=t=>()=>{S.tool=t;ui();draw()};
  ['select','move','rotate','scale'].forEach(t=>r.append(btn(t,t[0].toUpperCase()+t.slice(1),t,tool(t),S.tool===t?'on':'')));r.append(Object.assign(document.createElement('i'),{className:'sep'}));
  if(S.mode==='object'){r.append(btn('add','Add','add',()=>sheet('add')),btn('dup','Duplicate','dup',dupObjects),btn('del','Delete','del',delObjects))}
  else{r.append(btn('extrude','Extrude','extrude',()=>runOp('extrude')),btn('inset','Inset','inset',()=>runOp('inset')),btn('bevel','Bevel','bevel',()=>runOp('bevel')),
   btn('loop','Loop Cut','loop',()=>{S.tool=S.tool==='loop'?'select':'loop';ui();if(S.tool==='loop')toast('Tap an edge — the cut runs across it')},S.tool==='loop'?'on':''),btn('subd','Subdivide','subd',()=>runOp('subd')),btn('merge','Merge','merge',()=>runOp('merge')),btn('del','Delete','del',()=>runOp('del')))}
- const o=act();let st='';if(o){const c=M.check(o.mesh),ln=activeLayer().name;st=S.mode==='edit'?`${o.name} · ${ln} · V ${selVerts().size}/${c.verts} · E ${c.edges} · F ${S.fs.size}/${c.faces}${c.closed?'':c.manifold?' · open':' · non-manifold'}`:`${S.objs.length} object${S.objs.length===1?'':'s'} · ${S.osel.size} selected · ${ln}`}$('status').textContent=st;if($('layerWrap')&&!$('layerWrap').hidden){try{renderLayers()}catch(err){console.warn(err)}}}
+ const o=act();let st='';if(o){const c=M.check(o.mesh),ln=activeLayer().name,tag=' · '+S.orient+(S.mode==='edit'&&S.prop?' · prop':'');st=S.mode==='edit'?`${o.name} · ${ln} · V ${selVerts().size}/${c.verts} · E ${c.edges} · F ${S.fs.size}/${c.faces}${c.closed?'':c.manifold?' · open':' · non-manifold'}${tag}`:`${S.objs.length} object${S.objs.length===1?'':'s'} · ${S.osel.size} selected · ${ln}${tag}`}$('status').textContent=st;if($('layerWrap')&&!$('layerWrap').hidden){try{renderLayers()}catch(err){console.warn(err)}}placeSidebar();placeProp()}
 let tt;function toast(s){const t=$('toast');t.textContent=s;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),1900)}
 function changed(save=true){rebuild();ui();if(bootReady&&!S.adjust)tlRecord();if(bootReady&&save!==false)persistOpen(false)}
-document.querySelectorAll('#modeSeg button').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));document.querySelectorAll('#selbar button').forEach(b=>b.onclick=()=>setSM(b.dataset.sm));
+document.querySelectorAll('#modeSeg button').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));document.querySelectorAll('#selbar button').forEach(b=>b.onclick=()=>setSM(b.dataset.sm));document.querySelectorAll('#orientSeg button').forEach(b=>b.onclick=()=>setOrient(b.dataset.orient));
+$('propBtn').onclick=()=>setProp(!S.prop);$('falloff').onchange=e=>{S.falloff=e.target.value;saveXformPrefs();if(TD&&TD.edit){TD.sig='';moveTransform(TD.lx,TD.ly)}ui();draw()};
+$('propR').oninput=e=>{S.propR=+e.target.value;$('propRV').textContent=S.propR.toFixed(2);saveXformPrefs();if(TD&&TD.edit){TD.sig='';moveTransform(TD.lx,TD.ly)}else draw()};
 $('layersBtn').onclick=openLayers;$('cleanBtn').onclick=()=>setClean(true);$('cleanExit').onclick=()=>setClean(false);$('tlClean').onclick=()=>setClean(true);$('layerX').onclick=closeLayers;$('layerAdd').onclick=addLayer;$('layerMoveGo').onclick=()=>moveSelectionTo(+$('layerMoveTo').value);$('layerWrap').onclick=e=>{if(e.target.id==='layerWrap')closeLayers()};$('multi').onclick=()=>{S.multi=!S.multi;ui()};$('selAll').onclick=()=>selectAll(true);$('selNone').onclick=()=>selectAll(false);$('frame').onclick=frame;$('xray').onclick=()=>{S.xray=!S.xray;changed()};
 $('tlBtn').onclick=()=>openTL();$('undo').onclick=undo;$('redo').onclick=redo;$('menuBtn').onclick=()=>sheet('menu');$('sheetWrap').onclick=e=>{if(e.target.id==='sheetWrap')closeSheet()};
 function closeSheet(){$('sheetWrap').hidden=true}
@@ -724,7 +813,7 @@ function objLayer(o){if(!S.layers.length)applyLayers(null);let L=o&&layerById(o.
 function layerVisible(o){return objLayer(o).visible!==false}
 function layerLocked(o){return !!objLayer(o).locked}
 function noteLayerBlocks(){S.osel=new Set([...S.osel].filter(i=>{const o=S.objs[i];return o&&layerVisible(o)&&!layerLocked(o)}));const o=S.objs[S.active];if(S.mode==='edit'&&(!o||!layerVisible(o)||layerLocked(o))){clearSel();if(S.adjust)closeAdjust(true);S.mode='object';if(!['select','move','rotate','scale'].includes(S.tool))S.tool='select';return o&&layerLocked(o)?'locked':'hidden'}return ''}
-function setClean(on){on=!!on;if(on){try{closeLayers()}catch(e){}try{closeSheet()}catch(e){}}document.body.classList.toggle('clean',on);const b=$('tlClean');if(b)b.classList.toggle('on',on);draw()}
+function setClean(on){on=!!on;if(on){try{closeLayers()}catch(e){}try{closeSheet()}catch(e){}}document.body.classList.toggle('clean',on);const b=$('tlClean');if(b)b.classList.toggle('on',on);if(!on){placeSidebar();placeProp()}draw()}
 function openLayers(){try{closeSheet()}catch(e){}layerDel=0;$('layerWrap').hidden=false;renderLayers()}
 function closeLayers(){layerDel=0;const w=$('layerWrap');if(w)w.hidden=true}
 function addLayer(){push();lidSeq++;let n=S.layers.length+1,name='Layer '+n;const have=new Set(S.layers.map(l=>l.name));while(have.has(name)){n++;name='Layer '+n}const L={id:lidSeq,name,visible:true,locked:false};S.layers.push(L);S.activeLayer=L.id;changed();toast(name+' is active')}
@@ -880,7 +969,7 @@ function galThumbURL(it){const key=it.date+'|'+it.name;if(GAL.cache.has(key))ret
    try{dropLegacyTl()}catch(e){}
    try{tlEnsureEnd()}catch(e){}
    {const vis=S.objs.findIndex(o=>o&&layerVisible(o)&&!layerLocked(o));S.active=vis>=0?vis:0;S.osel=new Set(vis>=0?[vis]:[])}bootReady=true;changed(false);try{commitOpenFile()}catch(e){}ui();galOpen();window.BF_READY=true}).catch(err=>{console.error(err);bootReady=true;if(!fileId)fileId=makeId();window.BF_READY=true})})();
- window.BF={store:BFStore,libList,saveLib,storageNote,TLF,fileId:()=>fileId,newScene,openSavedFile,tlClear,commitOpenFile,tlSegs:()=>[{name:'file',start:0,frames:TLF.length}],tlRecord,openTL,closeTL,tlShow,tlExport,tlSetAuto,tlSetPlay,pickVideoType,get TL(){return TL},S,M,H,cam,gCam,orbit,runOp,setMode,setSM,selectAll,undo,redo,addPrim,tapSelect,proj,pick,snapView,draw,render,rebuild,ui,toOBJ:()=>M.toOBJ(S.objs),check:()=>M.check(act().mesh),gizmoRect,frame,setClean,applyLayers};
+ window.BF={store:BFStore,libList,saveLib,storageNote,TLF,fileId:()=>fileId,newScene,openSavedFile,tlClear,commitOpenFile,tlSegs:()=>[{name:'file',start:0,frames:TLF.length}],tlRecord,openTL,closeTL,tlShow,tlExport,tlSetAuto,tlSetPlay,pickVideoType,get TL(){return TL},S,M,H,cam,gCam,orbit,runOp,setMode,setSM,selectAll,undo,redo,addPrim,tapSelect,proj,pick,snapView,draw,render,rebuild,ui,toOBJ:()=>M.toOBJ(S.objs),check:()=>M.check(act().mesh),gizmoRect,frame,setClean,applyLayers,setOrient,setProp,beginTransform,moveTransform,endTransform,handles,pivot,closeAdjust,selVerts};
 
 /* ---------- journal ---------- */
 const JT={note:'Note',how:'How it should work',bug:'Bug'};
