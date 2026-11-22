@@ -653,8 +653,8 @@ function pref(k,d){try{const v=sessionStorage.getItem(k);return v==null?d:v}catc
 const H={u:[],r:[]};const snap=()=>JSON.stringify({objs:S.objs,active:S.active,mode:S.mode,vs:[...S.vs],es:[...S.es],fs:[...S.fs],osel:[...S.osel],layers:S.layers,activeLayer:S.activeLayer});
 function restore(j){const d=JSON.parse(j);S.objs=d.objs;S.active=d.active;S.mode=d.mode;S.vs=new Set(d.vs);S.es=new Set(d.es);S.fs=new Set(d.fs);S.osel=new Set(d.osel);applyLayers(d);uid=Math.max(1,...S.objs.map(o=>o.id+1))}
 function push(){H.u.push(snap());if(H.u.length>80)H.u.shift();H.r=[]}
-function undo(){closeAdjust(true);if(S.mode==='sculpt'&&sculptUndo())return;if(!H.u.length)return;sculptClearHist();H.r.push(snap());restore(H.u.pop());changed()}
-function redo(){closeAdjust(true);if(S.mode==='sculpt'&&sculptRedo())return;if(!H.r.length)return;sculptClearHist();H.u.push(snap());restore(H.r.pop());changed()}
+function undo(){if(JOIN)cancelJoinUI();closeAdjust(true);if(S.mode==='sculpt'&&sculptUndo())return;if(!H.u.length)return;sculptClearHist();H.r.push(snap());restore(H.u.pop());changed()}
+function redo(){if(JOIN)cancelJoinUI();closeAdjust(true);if(S.mode==='sculpt'&&sculptRedo())return;if(!H.r.length)return;sculptClearHist();H.u.push(snap());restore(H.r.pop());changed()}
 /* ---------- three ---------- */
 const canvas=$('view'),R=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false});R.setPixelRatio(Math.min(devicePixelRatio,3));R.setClearColor(0x070d16);R.autoClear=false;
 const scene=new THREE.Scene();scene.fog=new THREE.Fog(0x070d16,30,80);
@@ -861,7 +861,7 @@ addEventListener('keydown',e=>{const tag=e.target&&e.target.tagName;if(tag==='IN
    so a few thousand triangles stay usable on a phone. Strokes undo by restoring
    vertex positions; the mesh itself still saves with the rest of the scene. */
 const SC_BRUSHES=[{id:'draw',label:'Draw',icon:'sdraw'},{id:'layer',label:'Layer',icon:'slayer'},{id:'smooth',label:'Smooth',icon:'ssmooth'},{id:'grab',label:'Grab',icon:'sgrab'},{id:'clay',label:'Clay',icon:'sclay'},{id:'crease',label:'Crease',icon:'screase'},{id:'inflate',label:'Inflate',icon:'sinflate'},{id:'flatten',label:'Flat',icon:'sflat'},{id:'pinch',label:'Pinch',icon:'spinch'}];
-const SC={brush:'draw',size:72,strength:0.5,mirror:true,invert:false,detail:false,detailSize:0.12,undo:[],redo:[],cache:new Map(),stroke:null,cursor:null};
+const SC={brush:'draw',size:72,strength:0.5,mirror:true,invert:false,detail:false,detailSize:0.12,blend:0.42,undo:[],redo:[],cache:new Map(),stroke:null,cursor:null};
 try{const sz=+sessionStorage.getItem('bf-sc-size'),st=+sessionStorage.getItem('bf-sc-str'),mr=sessionStorage.getItem('bf-sc-mirror');if(sz>=10&&sz<=220)SC.size=sz;if(st>=0.02&&st<=1)SC.strength=st;if(mr==='0'||mr==='1')SC.mirror=mr==='1'}catch(e){}
 function sculptDetail(){const cores=navigator.hardwareConcurrency||4,sw=Math.min(screen.width||innerWidth||1200,screen.height||innerHeight||800);return (sw<900||cores<=4)?4:5}
 function sculptVertCap(){const cores=navigator.hardwareConcurrency||4,sw=Math.min(screen.width||innerWidth||1200,screen.height||innerHeight||800);return (sw<900||cores<=4)?14000:28000}
@@ -1029,7 +1029,7 @@ function ensureSculptPanel(){if($('sculptPanel'))return;const el=document.create
  $('scSize').oninput=e=>setSculptSize(+e.target.value);$('scStr').oninput=e=>setSculptStrength(+e.target.value/100);
  $('scDet').oninput=e=>setDetailSize(+e.target.value/100);
  $('scMirror').onclick=()=>setSculptMirror(!SC.mirror);$('scInvert').onclick=()=>setSculptInvert(!SC.invert);$('scDetail').onclick=()=>setSculptDetail(!SC.detail)}
-function syncSculptPanel(){ensureSculptPanel();const el=$('sculptPanel'),on=S.mode==='sculpt';el.hidden=!on;const status=$('status');
+function syncSculptPanel(){ensureSculptPanel();const el=$('sculptPanel'),on=S.mode==='sculpt'&&!JOIN;el.hidden=!on;const status=$('status');
  if(status)status.style.bottom=on?'':'';
  if(!on)return;
  const sl=$('scSize');if(sl&&document.activeElement!==sl)sl.value=SC.size;const sb=$('scSizeB');if(sb)sb.textContent=Math.round(SC.size);
@@ -1082,8 +1082,8 @@ function smoothSubdivide(){const o=act();if(!o||!o.mesh||!o.mesh.faces||!o.mesh.
  if(S.mode==='sculpt')sculptPushUndo(o);else push();
  const diag=meshDiag(o.mesh);
  relaxSmooth(o.mesh,12,0.5);
- const est=o.mesh.verts.length+Math.round(o.mesh.faces.length*1.5);
- if(est<=sculptVertCap())o.mesh=M.loopSubdiv(o.mesh);
+ const cap=sculptVertCap(),est=o.mesh.verts.length+Math.round(o.mesh.faces.length*1.5);
+ if(o.mesh.verts.length<=cap&&est<=cap*1.6)o.mesh=M.loopSubdiv(o.mesh);
  const now=meshDiag(o.mesh),s=diag/now;if(Math.abs(s-1)>0.02){let c=[0,0,0];for(const v of o.mesh.verts){c[0]+=v[0];c[1]+=v[1];c[2]+=v[2]}c=c.map(x=>x/o.mesh.verts.length);for(const v of o.mesh.verts){v[0]=c[0]+(v[0]-c[0])*s;v[1]=c[1]+(v[1]-c[1])*s;v[2]=c[2]+(v[2]-c[2])*s}}
  o.kind='sculpt';SC.cache.delete(o.id);S.mode='sculpt';if(!SC_BRUSHES.some(b=>b.id===SC.brush))SC.brush='draw';S.tool=SC.brush;changed();
  toast('Smoothed · '+o.mesh.verts.length+' verts');return true}
@@ -1131,12 +1131,116 @@ function showAdjust(){const A=S.adjust,el=$('adjust');if(!A||!A.op.params.length
   ['free','x','y','z'].forEach(ax=>{const b=document.createElement('button');b.type='button';b.textContent=ax==='free'?'Free':ax.toUpperCase();if((A.p.axis||'z')===ax)b.className='on';b.onclick=()=>{A.p.axis=ax;try{sessionStorage.setItem('bf-exAxis',ax)}catch(err){}rerun();showAdjust()};seg.append(b)});row.append(lab,seg);el.append(row)}
  el.hidden=false;$('adjOk').onclick=()=>closeAdjust();placePanels()}
 function closeAdjust(){const was=!!S.adjust;S.adjust=null;$('adjust').hidden=true;if(was)tlRecord();placePanels()}
+/* ---------- smooth join ----------
+   Overlapping meshes become one sculptable surface the way a metaball or a Blender
+   voxel remesh does: each mesh is a signed distance field, a smooth union fills the
+   crease, and marching tetrahedra turns the zero level back into triangles. */
+let JOIN=null,joinTimer=0,joinBusy=false,joinPending=false;
+function cancelJoinUI(){JOIN=null;clearTimeout(joinTimer);joinPending=false;const a=$('adjust');if(a&&!$('adjust').querySelector('#joinBlend')){} if(a)a.hidden=true}
+function joinRes(){const small=Math.min(screen.width||1200,screen.height||800)<900||(navigator.hardwareConcurrency||4)<=4;return small?32:40}
+function joinTargets(){const ok=i=>{const o=S.objs[i];return !!(o&&o.mesh&&o.mesh.faces&&o.mesh.faces.length&&layerVisible(o)&&!layerLocked(o))};
+ const selected=[...S.osel].filter(ok);if(selected.length>=2)return selected;
+ return S.objs.map((_,i)=>i).filter(ok)}
+function smoothMin(a,b,k){if(!(k>1e-5))return a<b?a:b;const h=Math.max(k-Math.abs(a-b),0)/k;return Math.min(a,b)-h*h*k*0.25}
+function meshTris(mesh){const tris=[],N=meshNormals(mesh),V=mesh.verts;
+ for(const f of mesh.faces||[]){if(!f||f.length<3)continue;for(let i=1;i<f.length-1;i++){const ia=f[0],ib=f[i],ic=f[i+1];const a=V[ia],b=V[ib],c=V[ic];
+  const e1x=b[0]-a[0],e1y=b[1]-a[1],e1z=b[2]-a[2],e2x=c[0]-a[0],e2y=c[1]-a[1],e2z=c[2]-a[2];
+  let nx=e1y*e2z-e1z*e2y,ny=e1z*e2x-e1x*e2z,nz=e1x*e2y-e1y*e2x;const fl=Math.hypot(nx,ny,nz);if(fl<1e-12)continue;nx/=fl;ny/=fl;nz/=fl;
+  tris.push({ax:a[0],ay:a[1],az:a[2],bx:b[0],by:b[1],bz:b[2],cx:c[0],cy:c[1],cz:c[2],nx,ny,nz,
+   nax:N[ia*3],nay:N[ia*3+1],naz:N[ia*3+2],nbx:N[ib*3],nby:N[ib*3+1],nbz:N[ib*3+2],ncx:N[ic*3],ncy:N[ic*3+1],ncz:N[ic*3+2],
+   minx:Math.min(a[0],b[0],c[0]),miny:Math.min(a[1],b[1],c[1]),minz:Math.min(a[2],b[2],c[2]),
+   maxx:Math.max(a[0],b[0],c[0]),maxy:Math.max(a[1],b[1],c[1]),maxz:Math.max(a[2],b[2],c[2])})}}
+ return tris}
+function closestTri(px,py,pz,t){const abx=t.bx-t.ax,aby=t.by-t.ay,abz=t.bz-t.az,acx=t.cx-t.ax,acy=t.cy-t.ay,acz=t.cz-t.az;
+ const apx=px-t.ax,apy=py-t.ay,apz=pz-t.az,d1=abx*apx+aby*apy+abz*apz,d2=acx*apx+acy*apy+acz*apz;
+ let qx,qy,qz,b0,b1,b2;
+ if(d1<=0&&d2<=0){qx=t.ax;qy=t.ay;qz=t.az;b0=1;b1=0;b2=0}
+ else {const bpx=px-t.bx,bpy=py-t.by,bpz=pz-t.bz,d3=abx*bpx+aby*bpy+abz*bpz,d4=acx*bpx+acy*bpy+acz*bpz;
+  if(d3>=0&&d4<=d3){qx=t.bx;qy=t.by;qz=t.bz;b0=0;b1=1;b2=0}
+  else {const vc=d1*d4-d3*d2;if(vc<=0&&d1>=0&&d3<=0){const v=d1/(d1-d3);qx=t.ax+abx*v;qy=t.ay+aby*v;qz=t.az+abz*v;b0=1-v;b1=v;b2=0}
+   else {const cpx=px-t.cx,cpy=py-t.cy,cpz=pz-t.cz,d5=abx*cpx+aby*cpy+abz*cpz,d6=acx*cpx+acy*cpy+acz*cpz;
+    if(d6>=0&&d5<=d6){qx=t.cx;qy=t.cy;qz=t.cz;b0=0;b1=0;b2=1}
+    else {const vb=d5*d2-d1*d6;if(vb<=0&&d2>=0&&d6<=0){const w=d2/(d2-d6);qx=t.ax+acx*w;qy=t.ay+acy*w;qz=t.az+acz*w;b0=1-w;b1=0;b2=w}
+     else {const va=d3*d6-d5*d4;if(va<=0&&(d4-d3)>=0&&(d5-d6)>=0){const w=(d4-d3)/((d4-d3)+(d5-d6));qx=t.bx+(t.cx-t.bx)*w;qy=t.by+(t.cy-t.by)*w;qz=t.bz+(t.cz-t.bz)*w;b0=0;b1=1-w;b2=w}
+      else {const den=1/(va+vb+vc||1),v=vb*den,w=vc*den;qx=t.ax+abx*v+acx*w;qy=t.ay+aby*v+acy*w;qz=t.az+abz*v+acz*w;b0=1-v-w;b1=v;b2=w}}}}}}
+ const dx=px-qx,dy=py-qy,dz=pz-qz;return {d2:dx*dx+dy*dy+dz*dz,qx,qy,qz,b0,b1,b2}}
+function sdfOf(mesh,origin,cell,dim,reach){const dim1=dim+1,n=dim1*dim1*dim1,field=new Float32Array(n);field.fill(NaN);
+ const tris=meshTris(mesh),reach2=reach*reach,at=(x,y,z)=>x+dim1*(y+dim1*z);
+ for(const t of tris){const x0=Math.max(0,Math.floor((t.minx-reach-origin[0])/cell)),x1=Math.min(dim,Math.ceil((t.maxx+reach-origin[0])/cell));
+  const y0=Math.max(0,Math.floor((t.miny-reach-origin[1])/cell)),y1=Math.min(dim,Math.ceil((t.maxy+reach-origin[1])/cell));
+  const z0=Math.max(0,Math.floor((t.minz-reach-origin[2])/cell)),z1=Math.min(dim,Math.ceil((t.maxz+reach-origin[2])/cell));
+  for(let z=z0;z<=z1;z++)for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){const px=origin[0]+x*cell,py=origin[1]+y*cell,pz=origin[2]+z*cell;const h=closestTri(px,py,pz,t);if(h.d2>reach2)continue;
+   const i=at(x,y,z),prev=field[i],d=Math.sqrt(h.d2);if(!Number.isNaN(prev)&&Math.abs(prev)<=d)continue;
+   const interior=h.b0>0.04&&h.b1>0.04&&h.b2>0.04;let nx=t.nx,ny=t.ny,nz=t.nz;
+   if(!interior){nx=t.nax*h.b0+t.nbx*h.b1+t.ncx*h.b2;ny=t.nay*h.b0+t.nby*h.b1+t.ncy*h.b2;nz=t.naz*h.b0+t.nbz*h.b1+t.ncz*h.b2;const l=Math.hypot(nx,ny,nz)||1;nx/=l;ny/=l;nz/=l}
+   const sgn=(px-h.qx)*nx+(py-h.qy)*ny+(pz-h.qz)*nz>=0?1:-1;field[i]=sgn*d}}
+ const outside=1e3,inside=-1e3,seen=new Uint8Array(n),q=[];
+ const seed=(x,y,z)=>{if(x<0||y<0||z<0||x>dim||y>dim||z>dim)return;const i=at(x,y,z);if(seen[i]||field[i]<0)return;seen[i]=1;if(Number.isNaN(field[i]))field[i]=outside;q.push(x,y,z)};
+ for(let z=0;z<=dim;z++)for(let y=0;y<=dim;y++){seed(0,y,z);seed(dim,y,z)}
+ for(let z=0;z<=dim;z++)for(let x=0;x<=dim;x++){seed(x,0,z);seed(x,dim,z)}
+ for(let y=0;y<=dim;y++)for(let x=0;x<=dim;x++){seed(x,y,0);seed(x,y,dim)}
+ for(let qi=0;qi<q.length;qi+=3){const x=q[qi],y=q[qi+1],z=q[qi+2];seed(x+1,y,z);seed(x-1,y,z);seed(x,y+1,z);seed(x,y-1,z);seed(x,y,z+1);seed(x,y,z-1)}
+ for(let i=0;i<n;i++)if(Number.isNaN(field[i]))field[i]=inside;return field}
+const JOIN_OFF=[[0,0,0],[1,0,0],[1,1,0],[0,1,0],[0,0,1],[1,0,1],[1,1,1],[0,1,1]];
+// Six tets around the cube diagonal 0–6. Adjacent cells cut a shared face on the same diagonal, so the surface welds.
+const JOIN_TETS=[[0,5,1,6],[0,1,2,6],[0,2,3,6],[0,3,7,6],[0,7,4,6],[0,4,5,6]];
+const TET_EDGES=[[0,1],[1,2],[2,0],[0,3],[1,3],[2,3]];
+const TET_FLAGS=[0x00,0x0d,0x13,0x1e,0x26,0x2b,0x35,0x38,0x38,0x35,0x2b,0x26,0x1e,0x13,0x0d,0x00];
+const TET_TRIS=[[], [0,3,2], [0,1,4], [1,4,2,2,4,3], [1,2,5], [0,3,5,0,5,1], [0,2,5,0,5,4], [5,4,3], [3,4,5], [4,5,0,5,2,0], [1,5,0,5,3,0], [5,2,1], [3,4,2,2,4,1], [4,1,0], [2,3,0], []];
+function marchField(field,origin,cell,dim){const dim1=dim+1,at=(x,y,z)=>x+dim1*(y+dim1*z),verts=[],faces=[],emap=new Map();
+ const cornerKey=(x,y,z)=>'c'+x+'_'+y+'_'+z;
+ const edgeVert=(ax,ay,az,bx,by,bz)=>{const va=field[at(ax,ay,az)],vb=field[at(bx,by,bz)],den=va-vb,t=Math.abs(den)<1e-8?0.5:Math.max(0,Math.min(1,va/den));
+  const k=t<1e-4?cornerKey(ax,ay,az):t>1-1e-4?cornerKey(bx,by,bz):(function(){const ka=cornerKey(ax,ay,az),kb=cornerKey(bx,by,bz);return ka<kb?ka+'_'+kb:kb+'_'+ka})();
+  const hit=emap.get(k);if(hit!=null)return hit;
+  const id=verts.length;verts.push([origin[0]+(ax+(bx-ax)*t)*cell,origin[1]+(ay+(by-ay)*t)*cell,origin[2]+(az+(bz-az)*t)*cell]);emap.set(k,id);return id};
+ const add=(a,b,c)=>{if(a!==b&&b!==c&&a!==c)faces.push([a,b,c])};
+ const orient=(ids,inside)=>{const A=verts[ids[0]],B=verts[ids[1]],C=verts[ids[2]];
+  const nx=(B[1]-A[1])*(C[2]-A[2])-(B[2]-A[2])*(C[1]-A[1]),ny=(B[2]-A[2])*(C[0]-A[0])-(B[0]-A[0])*(C[2]-A[2]),nz=(B[0]-A[0])*(C[1]-A[1])-(B[1]-A[1])*(C[0]-A[0]);
+  if(nx*(inside[0]-A[0])+ny*(inside[1]-A[1])+nz*(inside[2]-A[2])>0)ids.reverse();add(ids[0],ids[1],ids[2])};
+ for(let z=0;z<dim;z++)for(let y=0;y<dim;y++)for(let x=0;x<dim;x++){const cid=[],cpos=[],cval=[];
+  for(let c=0;c<8;c++){const ox=JOIN_OFF[c],cx=x+ox[0],cy=y+ox[1],cz=z+ox[2];cid.push([cx,cy,cz]);cpos.push([origin[0]+cx*cell,origin[1]+cy*cell,origin[2]+cz*cell]);cval.push(field[at(cx,cy,cz)])}
+  for(const tet of JOIN_TETS){let bits=0;for(let i=0;i<4;i++)if(cval[tet[i]]<=0)bits|=1<<i;const ef=TET_FLAGS[bits];if(!ef)continue;
+   const ev=new Array(6);for(let e=0;e<6;e++)if(ef&(1<<e)){const a=tet[TET_EDGES[e][0]],b=tet[TET_EDGES[e][1]];ev[e]=edgeVert(cid[a][0],cid[a][1],cid[a][2],cid[b][0],cid[b][1],cid[b][2])}
+   let inside=null;for(let i=0;i<4;i++)if(cval[tet[i]]<=0){inside=cpos[tet[i]];break}
+   const tris=TET_TRIS[bits];for(let t=0;t<tris.length;t+=3)orient([ev[tris[t]],ev[tris[t+1]],ev[tris[t+2]]],inside)}}
+ return {verts,faces,wires:[]}}
+M.smoothJoin=function(meshes,opts){const list=(meshes||[]).filter(m=>m&&m.verts&&m.verts.length&&m.faces&&m.faces.length);if(list.length<2)return null;
+ let min=[1e9,1e9,1e9],max=[-1e9,-1e9,-1e9],rad=0,count=0;
+ for(const m of list){let c=[0,0,0];for(const v of m.verts){c[0]+=v[0];c[1]+=v[1];c[2]+=v[2];for(let k=0;k<3;k++){min[k]=Math.min(min[k],v[k]);max[k]=Math.max(max[k],v[k])}}
+  c=c.map(x=>x/m.verts.length);let r=0;for(const v of m.verts)r=Math.max(r,Math.hypot(v[0]-c[0],v[1]-c[1],v[2]-c[2]));rad+=r;count++}
+ const avgR=rad/Math.max(1,count),blend=Math.max(0,Math.min(1,+opts.blend||0)),k=blend*avgR*0.7,diag=Math.hypot(max[0]-min[0],max[1]-min[1],max[2]-min[2])||1;
+ const res=Math.max(16,Math.min(48,opts.res|0||32)),pad=Math.max(k*1.6,diag*0.04)+diag/res;
+ const origin=[min[0]-pad,min[1]-pad,min[2]-pad],extent=[max[0]-min[0]+pad*2,max[1]-min[1]+pad*2,max[2]-min[2]+pad*2];
+ const cell=Math.max(extent[0],extent[1],extent[2])/res,reach=Math.max(k,cell*2)+cell*1.6;
+ let field=null;for(const m of list){const sdf=sdfOf(m,origin,cell,res,reach);if(!field)field=sdf;else for(let i=0;i<field.length;i++)field[i]=smoothMin(field[i],sdf[i],k)}
+ const out=marchField(field,origin,cell,res);if(!out.faces.length)return null;
+ const span=meshDiag(out);relaxSmooth(out,4,0.32);
+ const now=meshDiag(out),s=span/now;if(Math.abs(s-1)>0.015){let c=[0,0,0];for(const v of out.verts){c[0]+=v[0];c[1]+=v[1];c[2]+=v[2]}c=c.map(x=>x/out.verts.length);for(const v of out.verts){v[0]=c[0]+(v[0]-c[0])*s;v[1]=c[1]+(v[1]-c[1])*s;v[2]=c[2]+(v[2]-c[2])*s}}
+ return out};
+function scheduleJoin(){clearTimeout(joinTimer);joinTimer=setTimeout(rerunJoin,80)}
+function rerunJoin(){if(!JOIN)return;if(joinBusy){joinPending=true;return}joinBusy=true;
+ const mesh=M.smoothJoin(JOIN.sources, {blend:SC.blend, res:JOIN.res});
+ if(mesh){const o=S.objs.find(x=>x&&x.id===JOIN.resultId);if(o){o.mesh=mesh;SC.cache.delete(o.id);rebuild()}}
+ joinBusy=false;if(joinPending){joinPending=false;rerunJoin()}}
+function showJoinBar(){const el=$('adjust');el.innerHTML='<h3>JOIN <span style="color:var(--muted);font-weight:500;letter-spacing:0">clay seam</span><button id="adjOk">Done</button></h3><label class="row"><span>Blend</span><input id="joinBlend" type="range" min="0" max="100" step="1"><b id="joinBlendB">0.42</b></label><p class="lhint">Zero is a sharp union. Higher fills the crack between the shapes, like clay.</p>';
+ el.hidden=false;const sl=$('joinBlend');sl.value=Math.round(SC.blend*100);$('joinBlendB').textContent=SC.blend.toFixed(2);
+ sl.oninput=e=>{SC.blend=+e.target.value/100;$('joinBlendB').textContent=SC.blend.toFixed(2);scheduleJoin()};
+ $('adjOk').onclick=finishJoin;ui()}
+function finishJoin(){if(!JOIN){const a=$('adjust');if(a)a.hidden=true;return}cancelJoinUI();changed();toast('Joined · drag across the seam to sculpt it')}
+function beginJoin(){if(JOIN){finishJoin();return}const ids=joinTargets();if(ids.length<2){toast(S.objs.filter(o=>o&&o.mesh&&o.mesh.faces&&o.mesh.faces.length).length<2?'Add two overlapping shapes first':'Select two or more objects, or leave one selected to join everything visible');return}
+ const sources=ids.map(i=>M.clone(S.objs[i].mesh));const res=joinRes();const mesh=M.smoothJoin(sources,{blend:SC.blend,res});
+ if(!mesh){toast('Those shapes did not join. Overlap them and try again');return}
+ const drop=new Set(ids.map(i=>S.objs[i].id)),layer=S.objs[ids[0]].layer,names=ids.map(i=>S.objs[i].name);
+ push();sculptClearHist();S.objs=S.objs.filter(o=>!drop.has(o.id));const o=newObj(names.slice(0,2).join(' + ').slice(0,32)||'Joined',mesh,layer);o.kind='sculpt';
+ S.objs.push(o);S.active=S.objs.length-1;S.osel=new Set([S.active]);S.mode='sculpt';if(!SC_BRUSHES.some(b=>b.id===SC.brush))SC.brush='draw';S.tool=SC.brush;
+ JOIN={sources,resultId:o.id,res};SC.cache.delete(o.id);rebuild();frame();showJoinBar();toast('Joined '+ids.length+' shapes · drag Blend, then Done')}
+
 /* object ops */
 function addPrim(kind){const host=activeLayer();push();if(host.visible===false)host.visible=true;const mk={cube:()=>M.cube(1),plane:()=>M.plane(1),cylinder:()=>M.cylinder(16,1,1),sphere:()=>M.sphere(16,8,1)}[kind]();const off=[orbit.t.x,orbit.t.y,0];mk.verts=mk.verts.map(v=>vadd(v,off));
  const n=kind[0].toUpperCase()+kind.slice(1);S.objs.push(newObj(n+' '+(S.objs.filter(o=>o.name.startsWith(n)).length+1),mk,host.id));S.active=S.objs.length-1;S.osel=host.locked?new Set():new Set([S.active]);if(S.mode==='edit'){if(host.locked){S.mode='object';clearSel()}else clearSel()}closeSheet();changed();toast('Added '+n+' · '+host.name+(host.locked?' (locked)':''))}
 function delObjects(){const ids=[...S.osel].filter(i=>S.objs[i]&&layerVisible(S.objs[i])&&!layerLocked(S.objs[i]));if(!ids.length)return toast(S.osel.size?'Layer is locked':'Select an object');push();const drop=new Set(ids);const counts=new Map();S.layers.forEach(l=>counts.set(l.id,0));S.objs.forEach((o,i)=>{if(!drop.has(i))counts.set(o.layer,(counts.get(o.layer)||0)+1)});S.objs=S.objs.filter((_,i)=>!drop.has(i));if(S.layers.length>1){const keep=S.layers.filter(l=>(counts.get(l.id)||0)>0);S.layers=keep.length?keep:[S.layers.find(l=>l.id===S.activeLayer)||S.layers[0]]}if(!S.layers.some(l=>l.id===S.activeLayer))S.activeLayer=S.layers[0].id;S.osel.clear();S.active=Math.max(0,Math.min(S.active,Math.max(0,S.objs.length-1)));if(!S.objs.length)S.mode='object';changed()}
 function dupObjects(){const ids=[...S.osel].filter(i=>S.objs[i]&&!layerLocked(S.objs[i]));if(!ids.length)return toast(S.osel.size?'Layer is locked':'Select an object');push();const ns=new Set();ids.forEach(i=>{const o=S.objs[i],m=M.clone(o.mesh);m.verts=m.verts.map(v=>vadd(v,[.5,.5,0]));const nb=newObj(o.name+'.copy',m,o.layer);nb.basis=objBasis(o).map(r=>r.slice());if(o.kind)nb.kind=o.kind;S.objs.push(nb);ns.add(S.objs.length-1)});S.osel=ns;S.active=[...ns].pop();S.tool='move';changed()}
-function setMode(md){if(md===S.mode)return;if(md==='sculpt'){enterSculpt();return}if(S.mode==='sculpt')SC.stroke=null;if(md==='edit'){if(!S.objs.length)return toast('Add an object first');let idx=S.osel.size?[...S.osel][0]:S.active;const usable=i=>{const o=S.objs[i];return !!(o&&layerVisible(o)&&!layerLocked(o))};if(!usable(idx)){idx=S.objs.findIndex((_,i)=>usable(i));if(idx<0)return toast('Layer is locked or hidden')}S.active=idx;S.osel=new Set([idx]);clearSel()}closeAdjust();S.mode=md;if(!['select','move','rotate','scale'].includes(S.tool))S.tool='select';changed()}
+function setMode(md){if(md===S.mode)return;if(JOIN)cancelJoinUI();if(md==='sculpt'){enterSculpt();return}if(S.mode==='sculpt')SC.stroke=null;if(md==='edit'){if(!S.objs.length)return toast('Add an object first');let idx=S.osel.size?[...S.osel][0]:S.active;const usable=i=>{const o=S.objs[i];return !!(o&&layerVisible(o)&&!layerLocked(o))};if(!usable(idx)){idx=S.objs.findIndex((_,i)=>usable(i));if(idx<0)return toast('Layer is locked or hidden')}S.active=idx;S.osel=new Set([idx]);clearSel()}closeAdjust();S.mode=md;if(!['select','move','rotate','scale'].includes(S.tool))S.tool='select';changed()}
 /* ---------- UI ---------- */
 function btn(id,label,icon,fn,cls=''){const b=document.createElement('button');b.id='t-'+id;b.className=cls;b.innerHTML=`<svg class="i" viewBox="0 0 24 24">${IC[icon]}</svg>${label}`;b.onclick=fn;return b}
 function ui(){$('appName').textContent=APP.name;document.querySelectorAll('#modeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.mode===S.mode));$('selbar').hidden=S.mode!=='edit';
@@ -1145,10 +1249,10 @@ function ui(){$('appName').textContent=APP.name;document.querySelectorAll('#mode
  $('sidebar').style.top=S.mode==='edit'?'calc(240px + var(--top))':S.mode==='sculpt'?'calc(128px + var(--top))':'calc(182px + var(--top))';syncPropPanel();syncSculptPanel();
  $('undo').disabled=!(H.u.length||(S.mode==='sculpt'&&SC.undo.length));$('redo').disabled=!(H.r.length||(S.mode==='sculpt'&&SC.redo.length));
  const r=$('rail');r.innerHTML='';const tool=t=>()=>{S.tool=t;ui();draw()};
- if(S.mode==='sculpt'){r.append(btn('ball','Ball','add',()=>addClayBall()),btn('convert','Convert','subd',()=>convertToSculpt()),btn('smoothsub','Subdiv','loop',()=>smoothSubdivide()));r.append(Object.assign(document.createElement('i'),{className:'sep'}));
+ if(S.mode==='sculpt'){r.append(btn('ball','Ball','add',()=>addClayBall()),btn('convert','Convert','subd',()=>convertToSculpt()),btn('smoothsub','Subdiv','loop',()=>smoothSubdivide()),btn('join','Join','merge',beginJoin));r.append(Object.assign(document.createElement('i'),{className:'sep'}));
   SC_BRUSHES.forEach(b=>r.append(btn(b.id,b.label,b.icon,()=>setSculptBrush(b.id),SC.brush===b.id?'on':'')))}
  else{['select','move','rotate','scale'].forEach(t=>r.append(btn(t,t[0].toUpperCase()+t.slice(1),t,tool(t),S.tool===t?'on':'')));r.append(Object.assign(document.createElement('i'),{className:'sep'}));
-  if(S.mode==='object'){r.append(btn('add','Add','add',()=>sheet('add')),btn('dup','Duplicate','dup',dupObjects),btn('del','Delete','del',delObjects))}
+  if(S.mode==='object'){r.append(btn('add','Add','add',()=>sheet('add')),btn('dup','Duplicate','dup',dupObjects),btn('join','Join','merge',beginJoin),btn('del','Delete','del',delObjects))}
   else{r.append(btn('extrude','Extrude','extrude',()=>runOp('extrude')),btn('inset','Inset','inset',()=>runOp('inset')),btn('bevel','Bevel','bevel',()=>runOp('bevel')),
    btn('loop','Loop Cut','loop',()=>{S.tool=S.tool==='loop'?'select':'loop';ui();if(S.tool==='loop')toast('Tap an edge — the cut runs across it')},S.tool==='loop'?'on':''),btn('subd','Subdivide','subd',()=>runOp('subd')),btn('merge','Merge','merge',()=>runOp('merge')),btn('del','Delete','del',()=>runOp('del')))}}
  const o=act();let st='';if(o){const ln=activeLayer().name;
