@@ -128,17 +128,23 @@ body.clean #cleanExit{display:flex}
 #orientBar button{font-size:11px;padding:0 8px}
 #propPanel{position:absolute;left:76px;right:10px;bottom:calc(88px + var(--safe));border-radius:18px;padding:8px 12px 6px;z-index:6}
 #propPanel h3{margin:0 0 2px;font-size:11px;letter-spacing:1.1px;font-weight:650;display:flex;justify-content:space-between;align-items:center}
+#sculptPanel{position:absolute;left:10px;right:10px;bottom:calc(88px + var(--safe));border-radius:18px;padding:10px 14px 8px;z-index:6}
+#sculptPanel h3{margin:0 0 4px;font-size:12px;letter-spacing:1.2px;font-weight:650;display:flex;justify-content:space-between;align-items:center}
+#sculptPanel h3 span{color:var(--muted);font-weight:500;letter-spacing:.4px;font-size:11px}
+#sculptPanel .row button{min-height:40px;padding:0 12px;border-radius:12px;background:#ffffff0d;font-size:12px;font-weight:650}
+#sculptPanel .row button.on{color:var(--blue);background:#74dfed22}
+#modeSeg button{padding:0 10px}
 #propPanel h3 button,#propPanel .seg button,#exAxis button{min-height:32px;min-width:0;font-size:11px;padding:0 4px}
 #propPanel .seg,#exAxis{display:flex;flex:1;gap:2px}
 #propPanel .seg button,#exAxis button{flex:1}
-body.clean header,body.clean #modebar,body.clean #sidebar,body.clean #rail,body.clean #adjust,body.clean #propPanel,body.clean #status,body.clean #toast,body.clean #sheetWrap,body.clean #layerWrap,body.clean #jWrap,body.clean #tlTop,body.clean #tlBar{display:none!important}
+body.clean header,body.clean #modebar,body.clean #sidebar,body.clean #rail,body.clean #adjust,body.clean #propPanel,body.clean #sculptPanel,body.clean #status,body.clean #toast,body.clean #sheetWrap,body.clean #layerWrap,body.clean #jWrap,body.clean #tlTop,body.clean #tlBar{display:none!important}
 </style></head><body>
 <canvas id="view"></canvas><canvas id="ov"></canvas>
 <header class="glass"><div id="brand"><img id="logo" alt=""><span id="appName">BlockForm</span></div>
 <button id="jBtn" aria-label="Journal"><svg class="i" viewBox="0 0 24 24"><path d="M6 3h11a2 2 0 0 1 2 2v16H7a2 2 0 0 1-2-2V4a1 1 0 0 1 1-1Z"/><path d="M9 8h6M9 12h6M5 18a2 2 0 0 1 2-2h12"/></svg></button><button id="tlBtn" aria-label="Timelapse"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/></svg></button><button id="undo" aria-label="Undo"><svg class="i" viewBox="0 0 24 24"><path d="M9 6 4 11l5 5M4 11h10a6 6 0 0 1 6 6"/></svg></button>
 <button id="redo" aria-label="Redo"><svg class="i" viewBox="0 0 24 24"><path d="m15 6 5 5-5 5m5-5H10a6 6 0 0 0-6 6"/></svg></button>
 <button id="menuBtn" aria-label="Menu"><svg class="i" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button></header>
-<div id="modebar"><div class="seg glass" id="modeSeg"><button data-mode="object">Object</button><button data-mode="edit">Edit</button></div>
+<div id="modebar"><div class="seg glass" id="modeSeg"><button data-mode="object">Object</button><button data-mode="edit">Edit</button><button data-mode="sculpt">Sculpt</button></div>
 <div class="seg glass" id="selbar"><button data-sm="v" aria-label="Vertex select"><svg class="i" viewBox="0 0 24 24"><path d="M4 18 12 5l8 13Z" opacity=".45"/><circle cx="12" cy="5" r="2.6" fill="currentColor"/></svg></button><button data-sm="e" aria-label="Edge select"><svg class="i" viewBox="0 0 24 24"><path d="M4 18 12 5l8 13Z" opacity=".45"/><path d="M4 18 12 5" stroke-width="3"/></svg></button><button data-sm="f" aria-label="Face select"><svg class="i" viewBox="0 0 24 24"><path d="M4 18 12 5l8 13Z" fill="currentColor" fill-opacity=".45"/></svg></button></div>
 <div class="seg glass" id="orientBar" role="group" aria-label="Transform orientation"><button data-orient="global" id="or-global" title="World axes">Global</button><button data-orient="local" id="or-local" title="Each element's own axis">Local</button><button data-orient="normal" id="or-normal" title="Face normals">Normal</button></div></div>
 <div id="sidebar" class="glass"><button id="layersBtn" aria-label="Layers">LAYERS</button><button id="cleanBtn" aria-label="Clean view">CLEAN</button><button id="multi">MULTI</button><button id="selAll">ALL</button><button id="selNone">NONE</button><button id="frame">FRAME</button><button id="xray">X-RAY</button><button id="prop" hidden title="Proportional editing">PROP</button></div>
@@ -196,6 +202,26 @@ M.cylinder=(n=16,r=1,h=1)=>{const v=[],f=[];for(let i=0;i<n;i++){const a=i/n*Mat
 M.sphere=(seg=16,rings=8,r=1)=>{const v=[[0,0,-r]],f=[];for(let j=1;j<rings;j++){const p=-Math.PI/2+j/rings*Math.PI;for(let i=0;i<seg;i++){const a=i/seg*Math.PI*2;v.push([Math.cos(p)*Math.cos(a)*r,Math.cos(p)*Math.sin(a)*r,Math.sin(p)*r])}}v.push([0,0,r]);
  const id=(j,i)=>1+(j-1)*seg+(i%seg),top=v.length-1;for(let i=0;i<seg;i++){f.push([0,id(1,i+1),id(1,i)]);f.push([top,id(rings-1,i),id(rings-1,i+1)])}
  for(let j=1;j<rings-1;j++)for(let i=0;i<seg;i++)f.push([id(j,i),id(j,i+1),id(j+1,i+1),id(j+1,i)]);return{verts:v,faces:f,wires:[]}};
+/* Unit icosphere, subdivided and projected back onto the sphere. Faces stay CCW from the outside. */
+M.icoSphere=function(level,radius){const t=(1+Math.sqrt(5))/2,R=radius||1;
+ let verts=[[-1,t,0],[1,t,0],[-1,-t,0],[1,-t,0],[0,-1,t],[0,1,t],[0,-1,-t],[0,1,-t],[t,0,-1],[t,0,1],[-t,0,-1],[-t,0,1]];
+ let faces=[[0,11,5],[0,5,1],[0,1,7],[0,7,10],[0,10,11],[1,5,9],[5,11,4],[11,10,2],[10,7,6],[7,1,8],[3,9,4],[3,4,2],[3,2,6],[3,6,8],[3,8,9],[4,9,5],[2,4,11],[6,2,10],[8,6,7],[9,8,1]];
+ const norm=p=>{const l=Math.hypot(p[0],p[1],p[2])||1;return [p[0]/l*R,p[1]/l*R,p[2]/l*R]};
+ verts=verts.map(norm);
+ for(let L=0;L<(level|0);L++){const mid=new Map();
+  const md=(a,b)=>{const k=a<b?a+'_'+b:b+'_'+a;if(mid.has(k))return mid.get(k);const i=verts.length;verts.push(norm(vlerp(verts[a],verts[b],.5)));mid.set(k,i);return i};
+  const nf=[];
+  for(const f of faces){const ab=md(f[0],f[1]),bc=md(f[1],f[2]),ca=md(f[2],f[0]);nf.push([f[0],ab,ca],[f[1],bc,ab],[f[2],ca,bc],[ab,bc,ca])}
+  faces=nf}
+ return {verts,faces,wires:[]}};
+/* Triangulate, then midpoint-subdivide until the mesh is dense enough to sculpt, without jumping past a phone-sized cap. */
+M.densify=function(mesh,target){const m={verts:(mesh.verts||[]).map(v=>v.slice()),faces:[],wires:[]};
+ for(const f of (mesh.faces||[])){if(!f||f.length<3)continue;if(f.length===3)m.faces.push([f[0],f[1],f[2]]);else for(let i=1;i<f.length-1;i++)m.faces.push([f[0],f[i],f[i+1]])}
+ const sub=()=>{const mid=new Map();const md=(a,b)=>{const k=a<b?a+'_'+b:b+'_'+a;if(mid.has(k))return mid.get(k);const i=m.verts.length;m.verts.push(vlerp(m.verts[a],m.verts[b],.5));mid.set(k,i);return i};const nf=[];
+  for(const f of m.faces){if(f.length!==3){nf.push(f);continue}const ab=md(f[0],f[1]),bc=md(f[1],f[2]),ca=md(f[2],f[0]);nf.push([f[0],ab,ca],[f[1],bc,ab],[f[2],ca,bc],[ab,bc,ca])}m.faces=nf};
+ let guard=0;target=target||2400;
+ while(m.verts.length<target&&guard++<8){if(m.faces.length*4>40000||m.verts.length>14000)break;sub()}
+ return m};
 /* selection conversions (vertex set is the truth) */
 M.facesFromVerts=(m,vs)=>m.faces.map((f,i)=>f.every(x=>vs.has(x))?i:-1).filter(i=>i>=0);
 M.edgesFromVerts=(m,vs)=>[...M.edges(m).keys()].filter(k=>{const [a,b]=k.split('_').map(Number);return vs.has(a)&&vs.has(b)});
@@ -555,7 +581,15 @@ const IC={select:'<path d="M6 3l12 9-6 1 3 7-2 1-3-7-4 4z"/>',move:'<path d="M12
 rotate:'<path d="M20 12a8 8 0 1 1-3-6.2"/><path d="M20 4v5h-5"/>',scale:'<path d="M4 20 20 4M14 4h6v6M4 14v6h6"/>',extrude:'<path d="M4 15l8 4 8-4-8-4z"/><path d="M12 11V3m-3 3 3-3 3 3"/>',
 inset:'<rect x="3" y="3" width="18" height="18" rx="1"/><rect x="8" y="8" width="8" height="8"/><path d="M3 3l5 5M21 3l-5 5M3 21l5-5M21 21l-5-5"/>',bevel:'<path d="M3 21V9l6-6h12"/><path d="M3 9h6V3" opacity=".5"/>',
 loop:'<rect x="3" y="5" width="18" height="14" rx="1"/><path d="M12 5v14" stroke-dasharray="2 2"/>',subd:'<rect x="3" y="3" width="18" height="18" rx="1"/><path d="M12 3v18M3 12h18"/>',
-merge:'<path d="M5 5l7 7 7-7M12 12v9"/>',del:'<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',add:'<path d="M12 4v16M4 12h16"/>',dup:'<rect x="8" y="8" width="12" height="12" rx="1"/><path d="M4 16V4h12"/>'};
+merge:'<path d="M5 5l7 7 7-7M12 12v9"/>',del:'<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',add:'<path d="M12 4v16M4 12h16"/>',dup:'<rect x="8" y="8" width="12" height="12" rx="1"/><path d="M4 16V4h12"/>',
+sdraw:'<path d="M4 16c2.2-6 4.2-8 8-8s5.8 2 8 8"/><path d="M12 8V3.5M9.2 6 12 3.2 14.8 6"/>',
+ssmooth:'<path d="M3 16c2.2-5 3.8-5 6 0s3.8 5 6 0 3.8-5 6 0"/>',
+sgrab:'<path d="M8 11V7.2a1.6 1.6 0 0 1 3.2 0V11"/><path d="M11.2 10.2V6a1.6 1.6 0 0 1 3.2 0v5"/><path d="M14.4 10.5V7.5a1.6 1.6 0 0 1 3.2 0v5.2c0 3.6-2 6.3-5.6 6.3h-.6c-2.8 0-4.6-1.6-5.4-4.2L4.2 12a1.5 1.5 0 0 1 2.2-1.8L8 11.6"/>',
+sclay:'<path d="M4 16c1.6-6 14.4-6 16 0"/><path d="M4 16h16"/><path d="M12 10.2v.01"/>',
+screase:'<path d="M4 7.5 12 18 20 7.5"/><path d="M7.5 7.5h9"/>',
+sinflate:'<circle cx="12" cy="12" r="6.5"/><path d="M12 3.5v2.2M12 18.3v2.2M3.5 12h2.2M18.3 12h2.2"/>',
+sflat:'<path d="M4 16h16"/><path d="M7 12.5 12 8l5 4.5"/>',
+spinch:'<path d="M4 7.5 10.5 12 4 16.5M20 7.5 13.5 12 20 16.5"/>'};
 const S={objs:[],active:0,mode:'object',sm:'f',tool:'select',multi:false,xray:false,vs:new Set(),es:new Set(),fs:new Set(),osel:new Set([0]),adjust:null,layers:[{id:1,name:'Layer 1',visible:true,locked:false}],activeLayer:1,orient:'global',prop:false,falloff:'smooth',propR:1};
 (()=>{const ok=v=>['global','local','normal'].includes(v),fo=v=>['smooth','sharp','linear','constant'].includes(v);const o=pref('bf-orient','global'),f=pref('bf-falloff','smooth'),r=+pref('bf-propR','1');S.orient=ok(o)?o:'global';S.prop=pref('bf-prop','0')==='1';S.falloff=fo(f)?f:'smooth';S.propR=(r>=0.05&&r<=30)?r:1})();
 let uid=1,lidSeq=1,layerDel=0;const newObj=(name,mesh,layer)=>{if(!S.layers.length)applyLayers(null);let lid=layer!=null?+layer:+S.activeLayer;if(!S.layers.some(l=>l.id===lid))lid=S.layers[0].id;return {id:uid++,name,mesh,layer:lid,basis:[[1,0,0],[0,1,0],[0,0,1]]}};
@@ -564,8 +598,8 @@ function pref(k,d){try{const v=sessionStorage.getItem(k);return v==null?d:v}catc
 const H={u:[],r:[]};const snap=()=>JSON.stringify({objs:S.objs,active:S.active,mode:S.mode,vs:[...S.vs],es:[...S.es],fs:[...S.fs],osel:[...S.osel],layers:S.layers,activeLayer:S.activeLayer});
 function restore(j){const d=JSON.parse(j);S.objs=d.objs;S.active=d.active;S.mode=d.mode;S.vs=new Set(d.vs);S.es=new Set(d.es);S.fs=new Set(d.fs);S.osel=new Set(d.osel);applyLayers(d);uid=Math.max(1,...S.objs.map(o=>o.id+1))}
 function push(){H.u.push(snap());if(H.u.length>80)H.u.shift();H.r=[]}
-function undo(){closeAdjust(true);if(!H.u.length)return;H.r.push(snap());restore(H.u.pop());changed()}
-function redo(){closeAdjust(true);if(!H.r.length)return;H.u.push(snap());restore(H.r.pop());changed()}
+function undo(){closeAdjust(true);if(S.mode==='sculpt'&&sculptUndo())return;if(!H.u.length)return;sculptClearHist();H.r.push(snap());restore(H.u.pop());changed()}
+function redo(){closeAdjust(true);if(S.mode==='sculpt'&&sculptRedo())return;if(!H.r.length)return;sculptClearHist();H.u.push(snap());restore(H.r.pop());changed()}
 /* ---------- three ---------- */
 const canvas=$('view'),R=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false});R.setPixelRatio(Math.min(devicePixelRatio,3));R.setClearColor(0x070d16);R.autoClear=false;
 const scene=new THREE.Scene();scene.fog=new THREE.Fog(0x070d16,30,80);
@@ -579,12 +613,22 @@ const root=new THREE.Group();scene.add(root);
 const MAT={solid:new THREE.MeshStandardMaterial({color:0xa3adb5,roughness:.62,metalness:.05,flatShading:true,polygonOffset:true,polygonOffsetFactor:1,polygonOffsetUnits:1,side:THREE.DoubleSide}),
  solidSel:new THREE.MeshStandardMaterial({color:0xcfe9ee,roughness:.55,metalness:.05,flatShading:true,polygonOffset:true,polygonOffsetFactor:1,polygonOffsetUnits:1,side:THREE.DoubleSide}),
  face:new THREE.MeshBasicMaterial({color:0x74dfed,transparent:true,opacity:.35,depthWrite:false,side:THREE.DoubleSide}),
- line:new THREE.LineBasicMaterial({vertexColors:true}),pts:new THREE.PointsMaterial({size:9,sizeAttenuation:false,vertexColors:true})};
+ line:new THREE.LineBasicMaterial({vertexColors:true}),pts:new THREE.PointsMaterial({size:9,sizeAttenuation:false,vertexColors:true}),
+ sculpt:new THREE.MeshStandardMaterial({color:0xd2c0a8,roughness:.62,metalness:.02,flatShading:false,side:THREE.DoubleSide}),
+ sculptSel:new THREE.MeshStandardMaterial({color:0xe7d5c0,roughness:.55,metalness:.02,flatShading:false,side:THREE.DoubleSide})};
 let pickMeshes=[];
 function triangulate(m){const pos=[],tri2face=[];m.faces.forEach((f,fi)=>{for(let i=1;i<f.length-1;i++){for(const k of [f[0],f[i],f[i+1]])pos.push(...m.verts[k]);tri2face.push(fi)}});return{pos,tri2face}}
 let LIVE=null;
 function rebuild(){while(root.children.length){const c=root.children.pop();c.geometry&&c.geometry.dispose()}pickMeshes=[];LIVE=[];
- S.objs.forEach((o,oi)=>{if(!o||!o.mesh||!layerVisible(o)){pickMeshes[oi]=null;LIVE[oi]=null;return}const m=o.mesh,{pos,tri2face}=triangulate(m),g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.computeVertexNormals();
+ S.objs.forEach((o,oi)=>{if(!o||!o.mesh||!layerVisible(o)){pickMeshes[oi]=null;LIVE[oi]=null;return}
+  if(o.kind==='sculpt'){const m=o.mesh,g=new THREE.BufferGeometry(),pos=new Float32Array(m.verts.length*3);
+   for(let i=0;i<m.verts.length;i++){const v=m.verts[i];pos[i*3]=v[0];pos[i*3+1]=v[1];pos[i*3+2]=v[2]}
+   const idx=[];for(const f of m.faces){if(!f||f.length<3)continue;if(f.length===3)idx.push(f[0],f[1],f[2]);else for(let k=1;k<f.length-1;k++)idx.push(f[0],f[k],f[k+1])}
+   g.setAttribute('position',new THREE.BufferAttribute(pos,3));g.setIndex(idx);g.computeVertexNormals();
+   const hot=(S.mode==='sculpt'&&oi===S.active)||(S.mode==='object'&&S.osel.has(oi));
+   const mesh=new THREE.Mesh(g,hot?MAT.sculptSel:MAT.sculpt);mesh.userData={oi,tri2face:null,sculpt:1};root.add(mesh);pickMeshes[oi]=mesh;
+   LIVE[oi]={oi,mesh,sculpt:true,lines:null,edges:[],face:null,faceIdx:null,pts:null};return}
+  const m=o.mesh,{pos,tri2face}=triangulate(m),g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.computeVertexNormals();
   const editing=S.mode==='edit'&&oi===S.active,osel=S.mode==='object'&&S.osel.has(oi);const mesh=new THREE.Mesh(g,osel?MAT.solidSel:MAT.solid);mesh.userData={oi,tri2face};root.add(mesh);pickMeshes[oi]=mesh;
   if(S.xray&&editing){mesh.material=MAT.solid.clone();mesh.material.transparent=true;mesh.material.opacity=.35;mesh.material.depthWrite=false}
   const E=M.edges(m),lp=[],lc=[],edges=[],base=editing?[.03,.04,.05]:osel?[.45,.87,.93]:[.08,.1,.12];
@@ -594,7 +638,9 @@ function rebuild(){while(root.children.length){const c=root.children.pop();c.geo
   if(editing){if(S.sm==='f'||S.sm==='v'||S.sm==='e'){const fsel=S.sm==='f'?[...S.fs]:M.facesFromVerts(m,S.vs);if(fsel.length){const fp=[],idx=[];fsel.forEach(fi=>{const f=m.faces[fi];if(!f)return;for(let i=1;i<f.length-1;i++){idx.push([f[0],f[i],f[i+1]]);for(const k of [f[0],f[i],f[i+1]])fp.push(...m.verts[k])}});const fg=new THREE.BufferGeometry();fg.setAttribute('position',new THREE.Float32BufferAttribute(fp,3));faceMesh=new THREE.Mesh(fg,MAT.face);faceIdx=idx;root.add(faceMesh)}}
    if(S.sm==='v'){const pp=[],pc=[];m.verts.forEach((v,i)=>{pp.push(...v);pc.push(...(S.vs.has(i)?[.45,.87,.93]:[.05,.07,.09]))});const pg=new THREE.BufferGeometry();pg.setAttribute('position',new THREE.Float32BufferAttribute(pp,3));pg.setAttribute('color',new THREE.Float32BufferAttribute(pc,3));pts=new THREE.Points(pg,MAT.pts);if(S.xray)pts.material=MAT.pts.clone(),pts.material.depthTest=false;root.add(pts)}}
   LIVE[oi]={oi,mesh,lines:ls,edges,face:faceMesh,faceIdx,pts}});draw()}
-function syncLive(){if(!LIVE)return rebuild();try{for(const rec of LIVE){if(!rec)continue;const m=S.objs[rec.oi]&&S.objs[rec.oi].mesh;if(!m)throw 0;const pos=triangulate(m).pos,pa=rec.mesh.geometry.attributes.position;if(pa.count*3!==pos.length)throw 0;for(let i=0;i<pos.length;i++)pa.array[i]=pos[i];pa.needsUpdate=true;rec.mesh.geometry.computeVertexNormals();
+function syncLive(){if(!LIVE)return rebuild();try{for(const rec of LIVE){if(!rec)continue;const m=S.objs[rec.oi]&&S.objs[rec.oi].mesh;if(!m)throw 0;
+  if(rec.sculpt){const pa=rec.mesh.geometry.attributes.position;if(pa.count!==m.verts.length)throw 0;const a=pa.array;for(let i=0;i<m.verts.length;i++){const v=m.verts[i];a[i*3]=v[0];a[i*3+1]=v[1];a[i*3+2]=v[2]}pa.needsUpdate=true;rec.mesh.geometry.computeVertexNormals();continue}
+  const pos=triangulate(m).pos,pa=rec.mesh.geometry.attributes.position;if(pa.count*3!==pos.length)throw 0;for(let i=0;i<pos.length;i++)pa.array[i]=pos[i];pa.needsUpdate=true;rec.mesh.geometry.computeVertexNormals();
   const la=rec.lines.geometry.attributes.position;if(la.count!==rec.edges.length*2)throw 0;let q=0;for(const ab of rec.edges){const A=m.verts[ab[0]],B=m.verts[ab[1]];la.array[q++]=A[0];la.array[q++]=A[1];la.array[q++]=A[2];la.array[q++]=B[0];la.array[q++]=B[1];la.array[q++]=B[2]}la.needsUpdate=true;
   if(rec.face&&rec.faceIdx){const fa=rec.face.geometry.attributes.position;let t=0;for(const tri of rec.faceIdx)for(const k of tri){const v=m.verts[k];fa.array[t++]=v[0];fa.array[t++]=v[1];fa.array[t++]=v[2]}fa.needsUpdate=true}
   if(rec.pts){const pp=rec.pts.geometry.attributes.position;if(pp.count!==m.verts.length)throw 0;let t=0;for(const v of m.verts){pp.array[t++]=v[0];pp.array[t++]=v[1];pp.array[t++]=v[2]}pp.needsUpdate=true}}draw()}catch(err){LIVE=null;rebuild()}}
@@ -615,7 +661,7 @@ function applyCam(){orbit.ph=Math.max(-1.5705,Math.min(1.5705,orbit.ph));const c
  const d=cam.position.clone().sub(orbit.t).normalize();gCam.position.copy(d.multiplyScalar(3.6));gCam.lookAt(0,0,0);gCam.updateMatrixWorld()}
 let anim=null;function snapView(n){const th=Math.abs(n.z)>.9?orbit.th:Math.atan2(n.y,n.x),ph=Math.asin(Math.max(-.99999,Math.min(.99999,n.z)))*(Math.abs(n.z)>.9?.99995:1);
  let dth=th-orbit.th;dth=Math.atan2(Math.sin(dth),Math.cos(dth));const s={th:orbit.th,ph:orbit.ph},t0=performance.now();anim=()=>{const k=Math.min(1,(performance.now()-t0)/320),e=1-Math.pow(1-k,3);orbit.th=s.th+dth*e;orbit.ph=s.ph+(ph-s.ph)*e;if(k>=1)anim=null;draw()};draw()}
-function frame(){const pts=[];if(S.mode==='edit'&&S.objs[S.active]&&layerVisible(S.objs[S.active])){const m=S.objs[S.active].mesh;const ids=[...selVerts()];(ids.length?ids:m.verts.map((_,i)=>i)).forEach(i=>pts.push(m.verts[i]))}else S.objs.forEach((o,i)=>{if(!layerVisible(o))return;if(!S.osel.size||S.osel.has(i))pts.push(...o.mesh.verts)});
+function frame(){const pts=[];if((S.mode==='edit'||S.mode==='sculpt')&&S.objs[S.active]&&layerVisible(S.objs[S.active])){const m=S.objs[S.active].mesh;const ids=S.mode==='edit'?[...selVerts()]:[];(ids.length?ids:m.verts.map((_,i)=>i)).forEach(i=>pts.push(m.verts[i]))}else S.objs.forEach((o,i)=>{if(!layerVisible(o))return;if(!S.osel.size||S.osel.has(i))pts.push(...o.mesh.verts)});
  if(!pts.length)return;const b=new THREE.Box3().setFromPoints(pts.map(p=>new THREE.Vector3(...p)));b.getCenter(orbit.t);orbit.r=Math.max(4,b.getSize(new THREE.Vector3()).length()*1.6);draw()}
 /* ---------- render ---------- */
 let raf=0;function draw(){if(!raf)raf=requestAnimationFrame(render)}
@@ -627,7 +673,7 @@ const act=()=>S.objs[S.active];
 function selVerts(){const m=act()?.mesh;if(!m)return new Set();if(S.sm==='v')return new Set(S.vs);if(S.sm==='e'){const s=new Set();S.es.forEach(k=>k.split('_').forEach(i=>s.add(+i)));return s}const s=new Set();S.fs.forEach(fi=>(m.faces[fi]||[]).forEach(i=>s.add(i)));return s}
 function setSM(sm){const m=act()?.mesh;if(!m){S.sm=sm;return}const vs=selVerts();S.sm=sm;S.vs=vs;S.es=new Set(M.edgesFromVerts(m,vs));S.fs=new Set(M.facesFromVerts(m,vs));ui();rebuild()}
 function clearSel(){S.vs.clear();S.es.clear();S.fs.clear()}
-function selectAll(v){if(S.mode==='object'){S.osel=v?new Set(S.objs.map((o,i)=>o&&layerVisible(o)&&!layerLocked(o)?i:-1).filter(i=>i>=0)):new Set()}else{const o=act();if(!o||layerLocked(o)||!layerVisible(o)){toast(o&&layerLocked(o)?'Layer is locked':'Layer is hidden');return}const m=o.mesh;clearSel();if(v){m.verts.forEach((_,i)=>S.vs.add(i));M.edges(m).forEach((_,k)=>S.es.add(k));m.faces.forEach((_,i)=>S.fs.add(i))}}rebuild();ui()}
+function selectAll(v){if(S.mode==='sculpt'){toast('Switch to Edit to select parts');return}if(S.mode==='object'){S.osel=v?new Set(S.objs.map((o,i)=>o&&layerVisible(o)&&!layerLocked(o)?i:-1).filter(i=>i>=0)):new Set()}else{const o=act();if(!o||layerLocked(o)||!layerVisible(o)){toast(o&&layerLocked(o)?'Layer is locked':'Layer is hidden');return}const m=o.mesh;clearSel();if(v){m.verts.forEach((_,i)=>S.vs.add(i));M.edges(m).forEach((_,k)=>S.es.add(k));m.faces.forEach((_,i)=>S.fs.add(i))}}rebuild();ui()}
 /* ---------- picking ---------- */
 const ray=new THREE.Raycaster();const ndc=(x,y,r)=>new THREE.Vector2(((x-r.x)/r.w)*2-1,-((y-r.y)/r.h)*2+1);
 function proj(p){const v=new THREE.Vector3(...p).project(cam);return{x:(v.x+1)/2*innerWidth,y:(1-v.y)/2*innerHeight,z:v.z}}
@@ -639,6 +685,7 @@ function pick(x,y){if(S.mode==='object'){const h=hitObj(x,y);return h?{o:h.objec
  let best=null,bd=24;for(const [k,e] of M.edges(m)){const a=proj(m.verts[e.a]),b=proj(m.verts[e.b]);if(a.z>1||b.z>1)continue;const dx=b.x-a.x,dy=b.y-a.y,l=dx*dx+dy*dy||1,t=Math.max(0,Math.min(1,((x-a.x)*dx+(y-a.y)*dy)/l)),d=Math.hypot(a.x+dx*t-x,a.y+dy*t-y);
   if(d<bd){const mid=vlerp(m.verts[e.a],m.verts[e.b],.5);if(visible(mid)){bd=d;best=k}}}return best?{e:best}:null}
 function tapSelect(x,y){const g=gizmoRect();if(!document.body.classList.contains('clean')&&x>=g.x&&x<=g.x+g.w&&y>=g.y&&y<=g.y+g.h){ray.setFromCamera(ndc(x,y,g),gCam);const h=ray.intersectObjects(gGroup.children,false)[0];if(h)snapView(h.object.userData.n);return}
+ if(S.mode==='sculpt')return;
  if(S.tool==='loop'&&S.mode==='edit'){const sm=S.sm;S.sm='e';const p=pick(x,y);S.sm=sm;if(p)runOp('loop',{key:p.e});else toast('Tap an edge to cut across it');return}
  const p=pick(x,y);if(S.mode==='object'){if(!p){if(!S.multi)S.osel.clear()}else if(S.objs[p.o]&&layerLocked(S.objs[p.o])){toast('Layer is locked');return}else{if(S.multi){S.osel.has(p.o)?S.osel.delete(p.o):S.osel.add(p.o)}else S.osel=new Set([p.o]);S.active=p.o}rebuild();ui();return}
  if(act()&&(layerLocked(act())||!layerVisible(act()))){toast(layerLocked(act())?'Layer is locked':'Layer is hidden');return}
@@ -673,16 +720,16 @@ function buildProp(verts,sel,radius,kind){const n=verts.length,weights=new Float
  return {weights,near}}
 function pivot(){if(S.mode==='object'){const ids=[...S.osel].filter(i=>S.objs[i]&&layerVisible(S.objs[i])&&!layerLocked(S.objs[i]));if(!ids.length)return null;let pts=[];ids.forEach(i=>pts.push(...S.objs[i].mesh.verts));return pts.length?pts.reduce((a,p)=>vadd(a,vmul(p,1/pts.length)),[0,0,0]):null}
  const o=act();if(!o||!layerVisible(o)||layerLocked(o))return null;const vs=[...selVerts()];return vs.length?M.center(o.mesh,vs):null}
-function handles(){if(document.body.classList.contains('clean')||!['move','rotate','scale'].includes(S.tool))return null;const p=pivot();if(!p)return null;const c=proj(p);if(c.z>1)return null;const dist=new THREE.Vector3(...p).distanceTo(cam.position),len=dist*.16;
+function handles(){if(S.mode==='sculpt'||document.body.classList.contains('clean')||!['move','rotate','scale'].includes(S.tool))return null;const p=pivot();if(!p)return null;const c=proj(p);if(c.z>1)return null;const dist=new THREE.Vector3(...p).distanceTo(cam.position),len=dist*.16;
  return {p,c,len,ax:orientDirs().map(a=>{const e=proj(vadd(p,vmul(a.d,len)));return {d:a.d,col:a.col,n:a.n,e}})}}
-function drawSel(x){if(S.mode!=='edit'||!act()||!pickMeshes[S.active])return;const m=act().mesh,vs=selVerts();if(!vs.size)return;x.strokeStyle='#8af0ff';x.lineWidth=2.5;x.lineCap='round';x.beginPath();
+function drawSel(x){if(S.mode!=='edit'||!act()||!pickMeshes[S.active])return;const m=act().mesh;if(m.verts.length>4500)return;const vs=selVerts();if(!vs.size)return;x.strokeStyle='#8af0ff';x.lineWidth=2.5;x.lineCap='round';x.beginPath();
  for(const [k,e] of M.edges(m)){if(!(vs.has(e.a)&&vs.has(e.b)))continue;if(S.sm==='e'&&!S.es.has(k))continue;if(!visible(vlerp(m.verts[e.a],m.verts[e.b],.5)))continue;const a=proj(m.verts[e.a]),b=proj(m.verts[e.b]);if(a.z>1||b.z>1)continue;x.moveTo(a.x,a.y);x.lineTo(b.x,b.y)}x.stroke();
  if(S.sm==='v'){x.fillStyle='#8af0ff';vs.forEach(i=>{if(!visible(m.verts[i]))return;const a=proj(m.verts[i]);x.beginPath();x.arc(a.x,a.y,5,0,7);x.fill()})}}
 function drawPropRing(x){if(!S.prop||S.mode!=='edit')return;const p=pivot();if(!p)return;const c=proj(p);if(c.z>1)return;const dist=new THREE.Vector3(...p).distanceTo(cam.position),wpp=2*dist*Math.tan(cam.fov*Math.PI/360)/innerHeight,pr=S.propR/(wpp||1);
  x.save();x.strokeStyle='rgba(116,223,237,.95)';x.fillStyle='rgba(116,223,237,.08)';x.lineWidth=TD?2:1.25;x.setLineDash([6,5]);x.beginPath();x.arc(c.x,c.y,Math.max(6,pr),0,Math.PI*2);x.fill();x.stroke();x.setLineDash([]);x.fillStyle='#edf2f5';x.font='11px ui-monospace,monospace';x.textAlign='center';x.fillText(S.propR.toFixed(2),c.x,c.y-pr-8);x.restore()}
 function drawFaceNormals(x){if(S.orient!=='normal'||S.mode!=='edit'||!act())return;const built=buildElementFrames(act().mesh);if(!built.list.length)return;const step=Math.max(1,Math.ceil(built.list.length/80));x.strokeStyle='#c5e3ec';x.lineWidth=1.4;x.beginPath();
  for(let i=0;i<built.list.length;i+=step){const el=built.list[i],a=proj(el.o),b=proj(vadd(el.o,vmul(el.z,.28)));if(a.z>1||b.z>1)continue;x.moveTo(a.x,a.y);x.lineTo(b.x,b.y)}x.stroke()}
-function drawOverlay(){const o=$('ov'),x=o.getContext('2d');x.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);x.clearRect(0,0,innerWidth,innerHeight);if(document.body.classList.contains('clean'))return;pickMeshes.forEach(p=>{if(p)p.updateMatrixWorld()});drawSel(x);drawFaceNormals(x);drawPropRing(x);const h=handles();if(!h)return;
+function drawOverlay(){const o=$('ov'),x=o.getContext('2d');x.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);x.clearRect(0,0,innerWidth,innerHeight);if(document.body.classList.contains('clean'))return;pickMeshes.forEach(p=>{if(p)p.updateMatrixWorld()});drawSel(x);drawFaceNormals(x);drawPropRing(x);drawBrush(x);const h=handles();if(!h)return;
  x.lineCap='round';for(const a of h.ax){x.strokeStyle=a.col;x.lineWidth=TD&&TD.ax===a.n?5:3;x.beginPath();x.moveTo(h.c.x,h.c.y);x.lineTo(a.e.x,a.e.y);x.stroke();x.fillStyle=a.col;x.beginPath();
   if(S.tool==='scale')x.rect(a.e.x-8,a.e.y-8,16,16);else if(S.tool==='rotate'){x.arc(a.e.x,a.e.y,10,0,7);}else{x.arc(a.e.x,a.e.y,9,0,7)}x.fill();x.fillStyle='#070d16';x.font='700 10px -apple-system,sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText(a.n,a.e.x,a.e.y+.5)}
  x.strokeStyle='#edf2f5';x.lineWidth=2;x.beginPath();x.arc(h.c.x,h.c.y,14,0,7);x.stroke();if(TD&&TD.label){x.fillStyle='#edf2f5';x.font='12px ui-monospace,monospace';x.textAlign='center';x.fillText(TD.label,h.c.x,h.c.y-30)}}
@@ -728,10 +775,11 @@ function placePanels(){const prop=$('propPanel'),adj=$('adjust');if(!prop)return
 /* ---------- input ---------- */
 const P=new Map();let G=null,lastCleanTap=0;
 canvas.addEventListener('pointerdown',e=>{try{canvas.setPointerCapture(e.pointerId)}catch(err){}P.set(e.pointerId,{x:e.clientX,y:e.clientY});
- if(P.size===1){const hh=hitHandle(e.clientX,e.clientY);if(hh){beginTransform(hh,e.clientX,e.clientY);if(TD){G={type:'xf',pid:e.pointerId};return}}G={type:'tap',x:e.clientX,y:e.clientY,th:orbit.th,ph:orbit.ph,t:performance.now(),pid:e.pointerId};return}
+ if(P.size===1){if(S.mode==='sculpt'&&!document.body.classList.contains('clean')&&e.button!==1){if(sculptBegin(e)){G={type:'sculpt',pid:e.pointerId};return}}const hh=hitHandle(e.clientX,e.clientY);if(hh){beginTransform(hh,e.clientX,e.clientY);if(TD){G={type:'xf',pid:e.pointerId};return}}G={type:'tap',x:e.clientX,y:e.clientY,th:orbit.th,ph:orbit.ph,t:performance.now(),pid:e.pointerId};return}
  if(P.size>=2&&G&&G.type==='xf'&&TD&&S.prop&&S.mode==='edit'){const pts=[...P.values()];G.pinch={d:Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y)||1,r:S.propR};return}
- if(P.size===2){if(G&&G.type==='xf'){TD=null;changed()}const [a,b]=[...P.values()];G={type:'two',d:Math.hypot(a.x-b.x,a.y-b.y),m:{x:(a.x+b.x)/2,y:(a.y+b.y)/2},r:orbit.r,t:orbit.t.clone()}}});
-canvas.addEventListener('pointermove',e=>{if(!P.has(e.pointerId))return;P.set(e.pointerId,{x:e.clientX,y:e.clientY});if(!G)return;
+ if(P.size===2){if(G&&G.type==='sculpt')sculptEnd();if(G&&G.type==='xf'){TD=null;changed()}const [a,b]=[...P.values()];G={type:'two',d:Math.hypot(a.x-b.x,a.y-b.y),m:{x:(a.x+b.x)/2,y:(a.y+b.y)/2},r:orbit.r,t:orbit.t.clone()}}});
+canvas.addEventListener('pointermove',e=>{if(S.mode==='sculpt'&&!SC.stroke){SC.cursor={x:e.clientX,y:e.clientY,hit:sculptHit(e.clientX,e.clientY)};if(!P.has(e.pointerId)){draw();return}}if(!P.has(e.pointerId))return;P.set(e.pointerId,{x:e.clientX,y:e.clientY});if(!G)return;
+ if(G.type==='sculpt'){if(!G.pid||e.pointerId===G.pid)sculptMove(e);return}
  if(G.type==='xf'&&TD){if(G.pinch&&P.size>=2&&S.prop){const pts=[...P.values()];const d=Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y)||1;setPropR(G.pinch.r*d/G.pinch.d)}
   if(!G.pid||e.pointerId===G.pid)moveTransform(e.clientX,e.clientY);return}
  if(G.type==='tap'||G.type==='orbit'){const dx=e.clientX-G.x,dy=e.clientY-G.y;if(G.type==='tap'&&Math.hypot(dx,dy)>7)G.type='orbit',document.body.classList.add('nav');if(G.type==='orbit'){orbit.th=G.th-dx*.0085;orbit.ph=G.ph+dy*.0085;draw()}}
@@ -739,12 +787,194 @@ canvas.addEventListener('pointermove',e=>{if(!P.has(e.pointerId))return;P.set(e.
   const wpp=2*orbit.r*Math.tan(cam.fov*Math.PI/360)/innerHeight,rt=new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld,0),upv=new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld,1);
   orbit.t.copy(G.t).add(rt.multiplyScalar(-(m.x-G.m.x)*wpp)).add(upv.multiplyScalar((m.y-G.m.y)*wpp));draw()}});
 const up=e=>{if(!P.has(e.pointerId))return;const pid=e.pointerId;P.delete(pid);if(!G)return;
+ if(G.type==='sculpt'){if(pid===G.pid||P.size===0){sculptEnd();return}return}
  if(G.type==='xf'){if(pid===G.pid||P.size===0){endTransform();return}if(G.pinch)G.pinch=null;return}
  if(G.type==='tap'&&P.size===0&&performance.now()-G.t<600){if(document.body.classList.contains('clean')){const now=performance.now();if(now-lastCleanTap<340){lastCleanTap=0;setClean(false);G=null;document.body.classList.remove('nav');draw();return}lastCleanTap=now}tapSelect(G.x,G.y)}
  if(P.size===0){G=null;document.body.classList.remove('nav');draw()}else if(G.type==='two')G={type:'none'}};
 canvas.addEventListener('pointerup',up);canvas.addEventListener('pointercancel',up);
-canvas.addEventListener('wheel',e=>{e.preventDefault();if(S.prop&&S.mode==='edit'&&!e.shiftKey){setPropR(S.propR*Math.exp(-e.deltaY*0.0012));return}orbit.r=Math.max(.3,Math.min(200,orbit.r*Math.exp(e.deltaY*.0015)));draw()},{passive:false});
-addEventListener('keydown',e=>{const tag=e.target&&e.target.tagName;if(tag==='INPUT'||tag==='TEXTAREA'||(e.target&&e.target.isContentEditable))return;if((e.key==='o'||e.key==='O')&&!e.metaKey&&!e.ctrlKey&&!e.altKey){e.preventDefault();if(S.mode!=='edit'){toast('Proportional edit works in Edit mode');return}setProp(!S.prop)}});
+canvas.addEventListener('wheel',e=>{e.preventDefault();if(S.mode==='sculpt'){if(e.shiftKey)setSculptStrength(SC.strength*Math.exp(-e.deltaY*0.0015));else setSculptSize(SC.size*Math.exp(-e.deltaY*0.0016));return}if(S.prop&&S.mode==='edit'&&!e.shiftKey){setPropR(S.propR*Math.exp(-e.deltaY*0.0012));return}orbit.r=Math.max(.3,Math.min(200,orbit.r*Math.exp(e.deltaY*.0015)));draw()},{passive:false});
+canvas.addEventListener('contextmenu',e=>{if(S.mode==='sculpt')e.preventDefault()});
+addEventListener('keydown',e=>{const tag=e.target&&e.target.tagName;if(tag==='INPUT'||tag==='TEXTAREA'||(e.target&&e.target.isContentEditable))return;
+ if(S.mode==='sculpt'&&(e.ctrlKey||e.metaKey)&&(e.key==='z'||e.key==='Z'||e.key==='y'||e.key==='Y')){e.preventDefault();if(e.key==='y'||e.key==='Y'||e.shiftKey)redo();else undo();return}
+ if(S.mode==='sculpt'&&(e.key==='['||e.key===']')){e.preventDefault();setSculptSize(SC.size+(e.key===']'?10:-10));return}
+ if(S.mode==='sculpt'&&(e.key==='x'||e.key==='X')&&!e.metaKey&&!e.ctrlKey&&!e.altKey){e.preventDefault();setSculptMirror(!SC.mirror);return}
+ if((e.key==='o'||e.key==='O')&&!e.metaKey&&!e.ctrlKey&&!e.altKey){e.preventDefault();if(S.mode!=='edit'){toast('Proportional edit works in Edit mode');return}setProp(!S.prop)}});
+
+/* ---------- sculpt mode ----------
+   A sculpt object is a normal Blockform mesh (verts + faces) with kind:'sculpt'.
+   Rendering uses one indexed buffer and smooth normals, and skips the wireframe,
+   so a few thousand triangles stay usable on a phone. Strokes undo by restoring
+   vertex positions; the mesh itself still saves with the rest of the scene. */
+const SC_BRUSHES=[{id:'draw',label:'Draw',icon:'sdraw'},{id:'smooth',label:'Smooth',icon:'ssmooth'},{id:'grab',label:'Grab',icon:'sgrab'},{id:'clay',label:'Clay',icon:'sclay'},{id:'crease',label:'Crease',icon:'screase'},{id:'inflate',label:'Inflate',icon:'sinflate'},{id:'flatten',label:'Flat',icon:'sflat'},{id:'pinch',label:'Pinch',icon:'spinch'}];
+const SC={brush:'draw',size:72,strength:0.5,mirror:true,invert:false,undo:[],redo:[],cache:new Map(),stroke:null,cursor:null};
+try{const sz=+sessionStorage.getItem('bf-sc-size'),st=+sessionStorage.getItem('bf-sc-str'),mr=sessionStorage.getItem('bf-sc-mirror');if(sz>=10&&sz<=220)SC.size=sz;if(st>=0.02&&st<=1)SC.strength=st;if(mr==='0'||mr==='1')SC.mirror=mr==='1'}catch(e){}
+function sculptDetail(){const cores=navigator.hardwareConcurrency||4,sw=Math.min(screen.width||innerWidth||1200,screen.height||innerHeight||800);return (sw<900||cores<=4)?4:5}
+function sculptClearHist(){SC.undo.length=0;SC.redo.length=0;SC.stroke=null}
+function symX(m){let x=0;const v=m.verts;for(let i=0;i<v.length;i++)x+=v[i][0];return x/(v.length||1)}
+function mirrorP(p,cx){return [cx+cx-p[0],p[1],p[2]]}
+function mirrorN(n){return [-n[0],n[1],n[2]]}
+function scFalloff(d,r){if(!(r>0)||d>=r)return 0;const t=1-d/r;return t*t*(3-2*t)}
+function cellKey(ix,iy,iz){return ((ix*73856093)^(iy*19349663)^(iz*83492791))>>>0}
+function pressureOf(e){const p=+e.pressure;if(e.pointerType==='pen')return Math.max(0.04,(p>0&&p<=1)?p:0.5);if(e.pointerType==='touch'&&p>0&&p<0.99)return p;return 1}
+function capturePos(m){const a=new Float32Array(m.verts.length*3);for(let i=0;i<m.verts.length;i++){const v=m.verts[i];a[i*3]=v[0];a[i*3+1]=v[1];a[i*3+2]=v[2]}return a}
+function applyPos(m,a){for(let i=0;i<m.verts.length;i++){const v=m.verts[i];v[0]=a[i*3];v[1]=a[i*3+1];v[2]=a[i*3+2]}}
+function meshNormals(m){const n=m.verts.length,N=new Float32Array(n*3),v=m.verts;
+ for(const f of m.faces){if(!f||f.length<3)continue;let nx=0,ny=0,nz=0;
+  for(let i=0;i<f.length;i++){const p=v[f[i]],q=v[f[(i+1)%f.length]];nx+=(p[1]-q[1])*(p[2]+q[2]);ny+=(p[2]-q[2])*(p[0]+q[0]);nz+=(p[0]-q[0])*(p[1]+q[1])}
+  for(let i=0;i<f.length;i++){const id=f[i];N[id*3]+=nx;N[id*3+1]+=ny;N[id*3+2]+=nz}}
+ for(let i=0;i<n;i++){const x=N[i*3],y=N[i*3+1],z=N[i*3+2],l=Math.hypot(x,y,z)||1;N[i*3]=x/l;N[i*3+1]=y/l;N[i*3+2]=z/l}return N}
+function sculptCache(o){const m=o.mesh;let c=SC.cache.get(o.id);if(c&&c.nv===m.verts.length&&c.nf===m.faces.length)return c;
+ const n=m.verts.length,bags=new Array(n);for(let i=0;i<n;i++)bags[i]=[];
+ const add=(a,b)=>{if(a!==b&&bags[a]&&bags[b]){bags[a].push(b);bags[b].push(a)}};
+ for(const f of m.faces){if(!f||f.length<3)continue;for(let i=0;i<f.length;i++)add(f[i],f[(i+1)%f.length])}
+ const neigh=bags.map(a=>a.length<2?a:[...new Set(a)]);
+ c={nv:n,nf:m.faces.length,neigh};SC.cache.set(o.id,c);return c}
+function buildHash(verts,cell){const inv=1/Math.max(cell,1e-4),g=new Map();
+ for(let i=0;i<verts.length;i++){const v=verts[i],k=cellKey(Math.floor(v[0]*inv),Math.floor(v[1]*inv),Math.floor(v[2]*inv));let b=g.get(k);if(!b){b=[];g.set(k,b)}b.push(i)}
+ return {g,inv}}
+function splitVerts(m,center,R,cx,hash){const h=hash||buildHash(m.verts,R),best=new Map();
+ const take=(c,side)=>{const x0=Math.floor(c[0]*h.inv),y0=Math.floor(c[1]*h.inv),z0=Math.floor(c[2]*h.inv),touched=new Set();
+  for(let ix=-1;ix<=1;ix++)for(let iy=-1;iy<=1;iy++)for(let iz=-1;iz<=1;iz++){const b=h.g.get(cellKey(x0+ix,y0+iy,z0+iz));if(!b)continue;
+   for(const i of b){if(touched.has(i))continue;touched.add(i);const v=m.verts[i];const d=Math.hypot(v[0]-c[0],v[1]-c[1],v[2]-c[2]);if(!(d<R))continue;
+    const prev=best.get(i);if(!prev)best.set(i,{d,side});else if(d<prev.d-1e-5)best.set(i,{d,side});else if(Math.abs(d-prev.d)<=Math.max(1e-4,R*1e-3))prev.side=2}}}
+ take(center,0);if(SC.mirror)take(mirrorP(center,cx),1);
+ const out=[];for(const [i,rec] of best){const f=scFalloff(rec.d,R);if(f>0)out.push({i,f,side:rec.side})}return out}
+function brushCtx(m,cache,N,R,pressure,invert){const s=SC.strength*pressure,sign=invert?-1:1,reach=R*s*0.85;
+ return {m,cache,N,amp:reach*0.55*sign,plane:reach*0.7*sign,pinch:0.5*s,dig:reach*0.4*(invert?1:-1),flat:Math.min(1,0.5+s*0.65),clay:0.82,smooth:Math.min(0.8,0.4+s*0.55),
+  cap:(SC.brush==='draw'||SC.brush==='inflate'||SC.brush==='crease'||SC.brush==='pinch')?reach:0,acc:SC.stroke?SC.stroke.acc:null}}
+function dispDraw(i,v,f,center,normal,ctx){const o=i*3,a=ctx.amp*f,N=ctx.N;return [N[o]*a,N[o+1]*a,N[o+2]*a]}
+function dispInflate(i,v,f,center,normal,ctx){const o=i*3,a=ctx.amp*Math.pow(Math.max(0,f),0.4),N=ctx.N;return [N[o]*a,N[o+1]*a,N[o+2]*a]}
+function dispSmooth(i,v,f,center,normal,ctx){const nb=ctx.cache.neigh[i];if(!nb||!nb.length)return [0,0,0];
+ let ax=0,ay=0,az=0;const verts=ctx.m.verts;for(let k=0;k<nb.length;k++){const p=verts[nb[k]];ax+=p[0];ay+=p[1];az+=p[2]}
+ const inv=1/nb.length,t=ctx.smooth*f;return [(ax*inv-v[0])*t,(ay*inv-v[1])*t,(az*inv-v[2])*t]}
+function dispClay(i,v,f,center,normal,ctx){const d=(v[0]-center[0])*normal[0]+(v[1]-center[1])*normal[1]+(v[2]-center[2])*normal[2],target=ctx.plane;let push=0;
+ if(target>=0){if(d<target)push=(target-d)*f*ctx.clay}else if(d>target)push=(target-d)*f*ctx.clay;
+ const lim=Math.abs(target);if(push>lim)push=lim;else if(push<-lim)push=-lim;return [normal[0]*push,normal[1]*push,normal[2]*push]}
+function dispCrease(i,v,f,center,normal,ctx){const t=ctx.pinch*f,o=i*3,a=ctx.dig*f,N=ctx.N;return [(center[0]-v[0])*t+N[o]*a,(center[1]-v[1])*t+N[o+1]*a,(center[2]-v[2])*t+N[o+2]*a]}
+function dispFlat(i,v,f,center,normal,ctx){const d=(v[0]-center[0])*normal[0]+(v[1]-center[1])*normal[1]+(v[2]-center[2])*normal[2],a=d*ctx.flat*f;return [-normal[0]*a,-normal[1]*a,-normal[2]*a]}
+function dispPinch(i,v,f,center,normal,ctx){const t=ctx.pinch*f;return [(center[0]-v[0])*t,(center[1]-v[1])*t,(center[2]-v[2])*t]}
+const SC_DISP={draw:dispDraw,smooth:dispSmooth,clay:dispClay,crease:dispCrease,inflate:dispInflate,flatten:dispFlat,pinch:dispPinch};
+function limitDelta(i,d,ctx){let mag=Math.hypot(d[0],d[1],d[2]);if(!(ctx.cap>0)||!ctx.acc||!(mag>0))return d;
+ const used=ctx.acc[i]||0,allow=ctx.cap-used;if(allow<=1e-8)return [0,0,0];
+ if(mag>allow){const s=allow/mag;d=[d[0]*s,d[1]*s,d[2]*s];mag=allow}ctx.acc[i]=used+mag;return d}
+function applyBrush(m,center,normal,R,cx,disp,ctx,hash){const parts=splitVerts(m,center,R,cx,hash),acc=[];let moved=0;
+ for(const p of parts){const v=m.verts[p.i];let d;
+  if(p.side===1)d=disp(p.i,v,p.f,mirrorP(center,cx),mirrorN(normal),ctx);
+  else if(p.side===2){const a=disp(p.i,v,p.f,center,normal,ctx),b=disp(p.i,v,p.f,mirrorP(center,cx),mirrorN(normal),ctx);d=[(a[0]+b[0])*0.5,(a[1]+b[1])*0.5,(a[2]+b[2])*0.5]}
+  else d=disp(p.i,v,p.f,center,normal,ctx);
+  d=limitDelta(p.i,d,ctx);const mag=Math.hypot(d[0],d[1],d[2]);if(mag>moved)moved=mag;if(mag>0)acc.push(p.i,d)}
+ for(let k=0;k<acc.length;k+=2){const v=m.verts[acc[k]],d=acc[k+1];v[0]+=d[0];v[1]+=d[1];v[2]+=d[2]}
+ return moved}
+function sculptDab(m,cache,center,normal,R,pressure,invert,cx){const disp=SC_DISP[SC.brush];if(!disp)return 0;
+ const nl=Math.hypot(normal[0],normal[1],normal[2])||1,n=[normal[0]/nl,normal[1]/nl,normal[2]/nl];
+ const N=meshNormals(m),ctx=brushCtx(m,cache,N,R,pressure,invert);
+ if(SC.brush==='smooth'){const hash=buildHash(m.verts,R);let moved=0;for(let i=0;i<4;i++)moved=Math.max(moved,applyBrush(m,center,n,R,cx,disp,ctx,hash));return moved}
+ return applyBrush(m,center,n,R,cx,disp,ctx,null)}
+function screenDelta(dist,x0,y0,x,y){const wpp=2*Math.max(dist,0.05)*Math.tan(cam.fov*Math.PI/360)/Math.max(1,innerHeight),dx=(x-x0)*wpp,dy=-(y-y0)*wpp;
+ const r=new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld,0),u=new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld,1);
+ return [r.x*dx+u.x*dy,r.y*dx+u.y*dy,r.z*dx+u.z*dy]}
+function grabBegin(m,center,R,cx){return {items:splitVerts(m,center,R,cx).map(p=>({i:p.i,f:p.f,side:p.side,o:m.verts[p.i].slice()}))}}
+function grabApply(m,st,x,y,pr){const delta=screenDelta(st.dist,st.x0,st.y0,x,y),md=mirrorN(delta),g=Math.min(1,0.3+SC.strength*0.95)*pr;let moved=0;
+ for(const it of st.grab.items){let d=delta;if(it.side===1)d=md;else if(it.side===2)d=[(delta[0]+md[0])*0.5,(delta[1]+md[1])*0.5,(delta[2]+md[2])*0.5];
+  const s=it.f*g,v=m.verts[it.i],nx=it.o[0]+d[0]*s,ny=it.o[1]+d[1]*s,nz=it.o[2]+d[2]*s,mag=Math.hypot(nx-v[0],ny-v[1],nz-v[2]);
+  if(mag>moved)moved=mag;v[0]=nx;v[1]=ny;v[2]=nz}
+ return moved}
+function brushRadius(dist){const wpp=2*Math.max(dist,0.05)*Math.tan(cam.fov*Math.PI/360)/Math.max(1,innerHeight);return Math.max(0.012,SC.size*wpp)}
+function sculptHit(x,y){const h=hitObj(x,y);if(!h||!h.face||!h.face.normal)return null;const oi=h.object.userData.oi,o=S.objs[oi];
+ if(!o||o.kind!=='sculpt'||!layerVisible(o))return null;const n=h.face.normal;return {oi,point:[h.point.x,h.point.y,h.point.z],normal:[n.x,n.y,n.z],dist:h.distance}}
+function sculptSync(oi){const rec=LIVE&&LIVE[oi],m=S.objs[oi]&&S.objs[oi].mesh;if(!rec||!rec.sculpt||!m){rebuild();return}
+ const pa=rec.mesh.geometry.attributes.position;if(pa.count!==m.verts.length){rebuild();return}
+ const a=pa.array;for(let i=0;i<m.verts.length;i++){const v=m.verts[i];a[i*3]=v[0];a[i*3+1]=v[1];a[i*3+2]=v[2]}
+ pa.needsUpdate=true;rec.mesh.geometry.computeVertexNormals();
+ const mat=(S.mode==='sculpt'&&oi===S.active)?MAT.sculptSel:MAT.sculpt;if(rec.mesh.material!==mat)rec.mesh.material=mat;draw()}
+function sculptFocus(oi){S.active=oi;S.osel=new Set([oi]);if(!LIVE)return;
+ for(let i=0;i<LIVE.length;i++){const rec=LIVE[i];if(rec&&rec.sculpt)rec.mesh.material=i===oi?MAT.sculptSel:MAT.sculpt}}
+function sculptPushUndo(o){SC.undo.push({id:o.id,pos:capturePos(o.mesh)});if(SC.undo.length>30)SC.undo.shift();SC.redo.length=0}
+function sculptBegin(e){const h=sculptHit(e.clientX,e.clientY);SC.cursor={x:e.clientX,y:e.clientY,hit:h};if(!h)return false;
+ const o=S.objs[h.oi];if(!o||o.kind!=='sculpt')return false;
+ if(layerLocked(o)){toast('Layer is locked');return true}
+ sculptFocus(h.oi);sculptPushUndo(o);
+ const cx=symX(o.mesh),invert=!!(SC.invert||e.altKey||e.button===2||e.button===5),R=brushRadius(h.dist),pr=pressureOf(e);
+ SC.stroke={oi:h.oi,cx,invert,changed:false,last:h.point.slice(),lastN:h.normal.slice(),x0:e.clientX,y0:e.clientY,dist:h.dist,grab:null,acc:new Float32Array(o.mesh.verts.length)};
+ if(SC.brush==='grab'){SC.stroke.grab=grabBegin(o.mesh,h.point,R,cx);ui();draw();return true}
+ const moved=sculptDab(o.mesh,sculptCache(o),h.point,h.normal,R,pr,invert,cx);
+ if(moved>1e-7)SC.stroke.changed=true;ui();sculptSync(h.oi);return true}
+function sculptMove(e){const st=SC.stroke;if(!st)return;const o=S.objs[st.oi];if(!o)return;
+ SC.cursor={x:e.clientX,y:e.clientY,hit:null};
+ if(SC.brush==='grab'){const moved=grabApply(o.mesh,st,e.clientX,e.clientY,pressureOf(e));if(moved>1e-7)st.changed=true;sculptSync(st.oi);return}
+ const h=sculptHit(e.clientX,e.clientY);SC.cursor.hit=h;if(!h||h.oi!==st.oi){draw();return}
+ const R=brushRadius(h.dist),step=Math.max(R*0.2,1e-4),a=st.last,b=h.point,dist=Math.hypot(b[0]-a[0],b[1]-a[1],b[2]-a[2]);
+ let n=Math.floor(dist/step);if(n<1){if(dist<step*0.35){draw();return}n=1}n=Math.min(n,8);
+ const cache=sculptCache(o),pr=pressureOf(e);
+ for(let i=1;i<=n;i++){const t=i/n,p=[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t];
+  let nx=st.lastN[0]+(h.normal[0]-st.lastN[0])*t,ny=st.lastN[1]+(h.normal[1]-st.lastN[1])*t,nz=st.lastN[2]+(h.normal[2]-st.lastN[2])*t;
+  const moved=sculptDab(o.mesh,cache,p,[nx,ny,nz],R,pr,st.invert,st.cx);if(moved>1e-7)st.changed=true}
+ st.last=b.slice();st.lastN=h.normal.slice();sculptSync(st.oi)}
+function sculptEnd(){const st=SC.stroke;SC.stroke=null;if(G&&G.type==='sculpt')G=null;document.body.classList.remove('nav');if(!st)return;
+ if(!st.changed){SC.undo.pop();ui();draw();return}
+ ui();if(bootReady&&!S.adjust)tlRecord();if(bootReady)persistOpen(false);draw()}
+function sculptUndo(){if(SC.stroke)sculptEnd();
+ while(SC.undo.length){const rec=SC.undo.pop(),oi=S.objs.findIndex(o=>o&&o.id===rec.id),o=S.objs[oi];
+  if(!o||o.mesh.verts.length*3!==rec.pos.length)continue;
+  SC.redo.push({id:o.id,pos:capturePos(o.mesh)});if(SC.redo.length>30)SC.redo.shift();
+  applyPos(o.mesh,rec.pos);S.active=oi;S.osel=new Set([oi]);if(S.mode!=='sculpt')S.mode='sculpt';changed();return true}
+ return false}
+function sculptRedo(){if(SC.stroke)sculptEnd();
+ while(SC.redo.length){const rec=SC.redo.pop(),oi=S.objs.findIndex(o=>o&&o.id===rec.id),o=S.objs[oi];
+  if(!o||o.mesh.verts.length*3!==rec.pos.length)continue;
+  SC.undo.push({id:o.id,pos:capturePos(o.mesh)});if(SC.undo.length>30)SC.undo.shift();
+  applyPos(o.mesh,rec.pos);S.active=oi;S.osel=new Set([oi]);changed();return true}
+ return false}
+function sculptDabWorld(point,normal,radius,pressure){const o=act();if(!o||o.kind!=='sculpt')return 0;
+ const n=vnorm(normal&&normal.length===3?normal:[0,0,1]);
+ const moved=sculptDab(o.mesh,sculptCache(o),point,n,radius>0?radius:0.35,pressure==null?1:pressure,SC.invert,symX(o.mesh));
+ sculptSync(S.active);return moved}
+function drawBrush(x){if(S.mode!=='sculpt'||!SC.cursor)return;const cx=SC.cursor.x,cy=SC.cursor.y;
+ x.save();x.strokeStyle=SC.invert?'rgba(232,150,120,.95)':'rgba(226,210,190,.95)';x.lineWidth=1.6;x.beginPath();x.arc(cx,cy,SC.size,0,Math.PI*2);x.stroke();
+ x.fillStyle='rgba(237,242,245,.92)';x.beginPath();x.arc(cx,cy,1.7,0,7);x.fill();
+ const hit=SC.cursor.hit,st=SC.stroke,o=S.objs[(hit&&hit.oi)!=null?hit.oi:(st?st.oi:-1)];
+ if(SC.mirror&&o&&o.mesh&&(hit||st)){const p=hit?hit.point:st.last,mp=mirrorP(p,st?st.cx:symX(o.mesh)),s=proj(mp);
+  if(s.z<1){x.setLineDash([5,4]);x.beginPath();x.arc(s.x,s.y,SC.size,0,Math.PI*2);x.stroke()}}
+ x.restore()}
+function ensureSculptPanel(){if($('sculptPanel'))return;const el=document.createElement('section');el.id='sculptPanel';el.className='glass';el.hidden=true;
+ el.innerHTML='<h3>SCULPT <span id="scName"></span></h3><label class="row"><span>Size</span><input id="scSize" type="range" min="10" max="220" step="1"><b id="scSizeB">72</b></label><label class="row"><span>Strength</span><input id="scStr" type="range" min="2" max="100" step="1"><b id="scStrB">0.50</b></label><div class="row"><button type="button" id="scMirror">Mirror X</button><button type="button" id="scInvert">Invert</button></div>';
+ document.body.append(el);
+ $('scSize').oninput=e=>setSculptSize(+e.target.value);$('scStr').oninput=e=>setSculptStrength(+e.target.value/100);
+ $('scMirror').onclick=()=>setSculptMirror(!SC.mirror);$('scInvert').onclick=()=>setSculptInvert(!SC.invert)}
+function syncSculptPanel(){ensureSculptPanel();const el=$('sculptPanel'),on=S.mode==='sculpt';el.hidden=!on;const status=$('status');
+ if(status)status.style.bottom=on?'':'';
+ if(!on)return;
+ const sl=$('scSize');if(sl&&document.activeElement!==sl)sl.value=SC.size;const sb=$('scSizeB');if(sb)sb.textContent=Math.round(SC.size);
+ const st=$('scStr');if(st&&document.activeElement!==st)st.value=Math.round(SC.strength*100);const stb=$('scStrB');if(stb)stb.textContent=SC.strength.toFixed(2);
+ const mb=$('scMirror');if(mb)mb.classList.toggle('on',SC.mirror);const ib=$('scInvert');if(ib)ib.classList.toggle('on',SC.invert);
+ const o=S.objs[S.active];const nm=$('scName');if(nm)nm.textContent=o&&o.kind==='sculpt'?o.name:'add clay';
+ if(status)requestAnimationFrame(()=>{if(S.mode==='sculpt')status.style.bottom='calc('+(100+el.offsetHeight)+'px + var(--safe))'})}
+function setSculptSize(v){SC.size=Math.max(10,Math.min(220,+v||10));try{sessionStorage.setItem('bf-sc-size',String(Math.round(SC.size)))}catch(e){}
+ const sl=$('scSize');if(sl&&document.activeElement!==sl)sl.value=SC.size;const b=$('scSizeB');if(b)b.textContent=Math.round(SC.size);draw()}
+function setSculptStrength(v){SC.strength=Math.max(0.02,Math.min(1,+v||0));try{sessionStorage.setItem('bf-sc-str',String(SC.strength))}catch(e){}
+ const sl=$('scStr');if(sl&&document.activeElement!==sl)sl.value=Math.round(SC.strength*100);const b=$('scStrB');if(b)b.textContent=SC.strength.toFixed(2)}
+function setSculptMirror(on){SC.mirror=!!on;try{sessionStorage.setItem('bf-sc-mirror',SC.mirror?'1':'0')}catch(e){}
+ const b=$('scMirror');if(b)b.classList.toggle('on',SC.mirror);toast(SC.mirror?'Mirror X on':'Mirror X off');draw()}
+function setSculptInvert(on){SC.invert=!!on;const b=$('scInvert');if(b)b.classList.toggle('on',SC.invert);toast(SC.invert?'Invert on · push in':'Invert off · raise')}
+function setSculptBrush(id){if(!SC_BRUSHES.some(b=>b.id===id))return;SC.brush=id;S.tool=id;ui();draw()}
+function enterSculpt(quiet){closeAdjust();const was=S.mode==='sculpt';S.mode='sculpt';if(!SC_BRUSHES.some(b=>b.id===SC.brush))SC.brush='draw';S.tool=SC.brush;
+ const o=S.objs[S.active];if(!(o&&o.kind==='sculpt')){const idx=S.objs.findIndex((x,i)=>x&&x.kind==='sculpt'&&S.osel.has(i)&&layerVisible(x)&&!layerLocked(x));if(idx>=0)S.active=idx}
+ if(!was)changed();else{ui();draw()}
+ if(!quiet){const cur=S.objs[S.active];toast(cur&&cur.kind==='sculpt'?'Sculpt · drag the clay. Empty space orbits.':'Sculpt · Ball adds clay, Convert uses the selection')}}
+function addClayBall(){const host=activeLayer();if(host.locked){toast('Layer is locked');return null}
+ push();if(host.visible===false)host.visible=true;const mesh=M.icoSphere(sculptDetail(),1),c=[orbit.t.x,orbit.t.y,Math.max(0,orbit.t.z)+1];
+ for(const v of mesh.verts){v[0]+=c[0];v[1]+=c[1];v[2]+=c[2]}
+ const name='Clay '+(S.objs.filter(o=>o&&o.name&&o.name.startsWith('Clay')).length+1),o=newObj(name,mesh,host.id);o.kind='sculpt';
+ S.objs.push(o);S.active=S.objs.length-1;S.osel=new Set([S.active]);S.mode='sculpt';if(!SC_BRUSHES.some(b=>b.id===SC.brush))SC.brush='draw';S.tool=SC.brush;
+ closeSheet();changed();frame();toast(name+' · '+mesh.verts.length+' verts · drag to shape');return o}
+function convertToSculpt(){let idx=S.active;
+ if(S.mode==='object'&&S.osel.size){const ids=[...S.osel].filter(i=>S.objs[i]&&layerVisible(S.objs[i])&&!layerLocked(S.objs[i]));if(ids.length)idx=ids.includes(S.active)?S.active:ids[0]}
+ const o=S.objs[idx];if(!o||!o.mesh){toast('Select an object to convert');return false}
+ if(layerLocked(o)||!layerVisible(o)){toast(layerLocked(o)?'Layer is locked':'Layer is hidden');return false}
+ if(o.kind==='sculpt'&&o.mesh.verts.length>=800){S.active=idx;S.osel=new Set([idx]);S.mode='sculpt';S.tool=SC.brush;changed();toast('Already sculptable · drag to shape');return true}
+ if(!o.mesh.faces||!o.mesh.faces.length){toast('That object has no faces');return false}
+ push();o.mesh=M.densify(o.mesh,sculptDetail()>=5?6000:2400);o.kind='sculpt';SC.cache.delete(o.id);clearSel();
+ S.active=idx;S.osel=new Set([idx]);S.mode='sculpt';S.tool=SC.brush;changed();frame();toast('Converted '+o.name+' · '+o.mesh.verts.length+' verts');return true}
 
 /* ---------- operations with live adjust panel ---------- */
 const OPS={
@@ -780,19 +1010,27 @@ function closeAdjust(){const was=!!S.adjust;S.adjust=null;$('adjust').hidden=tru
 function addPrim(kind){const host=activeLayer();push();if(host.visible===false)host.visible=true;const mk={cube:()=>M.cube(1),plane:()=>M.plane(1),cylinder:()=>M.cylinder(16,1,1),sphere:()=>M.sphere(16,8,1)}[kind]();const off=[orbit.t.x,orbit.t.y,0];mk.verts=mk.verts.map(v=>vadd(v,off));
  const n=kind[0].toUpperCase()+kind.slice(1);S.objs.push(newObj(n+' '+(S.objs.filter(o=>o.name.startsWith(n)).length+1),mk,host.id));S.active=S.objs.length-1;S.osel=host.locked?new Set():new Set([S.active]);if(S.mode==='edit'){if(host.locked){S.mode='object';clearSel()}else clearSel()}closeSheet();changed();toast('Added '+n+' · '+host.name+(host.locked?' (locked)':''))}
 function delObjects(){const ids=[...S.osel].filter(i=>S.objs[i]&&layerVisible(S.objs[i])&&!layerLocked(S.objs[i]));if(!ids.length)return toast(S.osel.size?'Layer is locked':'Select an object');push();const drop=new Set(ids);const counts=new Map();S.layers.forEach(l=>counts.set(l.id,0));S.objs.forEach((o,i)=>{if(!drop.has(i))counts.set(o.layer,(counts.get(o.layer)||0)+1)});S.objs=S.objs.filter((_,i)=>!drop.has(i));if(S.layers.length>1){const keep=S.layers.filter(l=>(counts.get(l.id)||0)>0);S.layers=keep.length?keep:[S.layers.find(l=>l.id===S.activeLayer)||S.layers[0]]}if(!S.layers.some(l=>l.id===S.activeLayer))S.activeLayer=S.layers[0].id;S.osel.clear();S.active=Math.max(0,Math.min(S.active,Math.max(0,S.objs.length-1)));if(!S.objs.length)S.mode='object';changed()}
-function dupObjects(){const ids=[...S.osel].filter(i=>S.objs[i]&&!layerLocked(S.objs[i]));if(!ids.length)return toast(S.osel.size?'Layer is locked':'Select an object');push();const ns=new Set();ids.forEach(i=>{const o=S.objs[i],m=M.clone(o.mesh);m.verts=m.verts.map(v=>vadd(v,[.5,.5,0]));const nb=newObj(o.name+'.copy',m,o.layer);nb.basis=objBasis(o).map(r=>r.slice());S.objs.push(nb);ns.add(S.objs.length-1)});S.osel=ns;S.active=[...ns].pop();S.tool='move';changed()}
-function setMode(md){if(md==='edit'){if(!S.objs.length)return toast('Add an object first');let idx=S.osel.size?[...S.osel][0]:S.active;const usable=i=>{const o=S.objs[i];return !!(o&&layerVisible(o)&&!layerLocked(o))};if(!usable(idx)){idx=S.objs.findIndex((_,i)=>usable(i));if(idx<0)return toast('Layer is locked or hidden')}S.active=idx;S.osel=new Set([idx]);clearSel()}closeAdjust();S.mode=md;if(!['select','move','rotate','scale'].includes(S.tool))S.tool='select';changed()}
+function dupObjects(){const ids=[...S.osel].filter(i=>S.objs[i]&&!layerLocked(S.objs[i]));if(!ids.length)return toast(S.osel.size?'Layer is locked':'Select an object');push();const ns=new Set();ids.forEach(i=>{const o=S.objs[i],m=M.clone(o.mesh);m.verts=m.verts.map(v=>vadd(v,[.5,.5,0]));const nb=newObj(o.name+'.copy',m,o.layer);nb.basis=objBasis(o).map(r=>r.slice());if(o.kind)nb.kind=o.kind;S.objs.push(nb);ns.add(S.objs.length-1)});S.osel=ns;S.active=[...ns].pop();S.tool='move';changed()}
+function setMode(md){if(md===S.mode)return;if(md==='sculpt'){enterSculpt();return}if(S.mode==='sculpt')SC.stroke=null;if(md==='edit'){if(!S.objs.length)return toast('Add an object first');let idx=S.osel.size?[...S.osel][0]:S.active;const usable=i=>{const o=S.objs[i];return !!(o&&layerVisible(o)&&!layerLocked(o))};if(!usable(idx)){idx=S.objs.findIndex((_,i)=>usable(i));if(idx<0)return toast('Layer is locked or hidden')}S.active=idx;S.osel=new Set([idx]);clearSel()}closeAdjust();S.mode=md;if(!['select','move','rotate','scale'].includes(S.tool))S.tool='select';changed()}
 /* ---------- UI ---------- */
 function btn(id,label,icon,fn,cls=''){const b=document.createElement('button');b.id='t-'+id;b.className=cls;b.innerHTML=`<svg class="i" viewBox="0 0 24 24">${IC[icon]}</svg>${label}`;b.onclick=fn;return b}
 function ui(){$('appName').textContent=APP.name;document.querySelectorAll('#modeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.mode===S.mode));$('selbar').hidden=S.mode!=='edit';
  document.querySelectorAll('#selbar button').forEach(b=>b.classList.toggle('on',b.dataset.sm===S.sm));$('multi').classList.toggle('on',S.multi);$('xray').classList.toggle('on',S.xray);$('xray').hidden=S.mode!=='edit';
- $('sidebar').style.top=S.mode==='edit'?'calc(240px + var(--top))':'calc(182px + var(--top))';syncPropPanel();$('undo').disabled=!H.u.length;$('redo').disabled=!H.r.length;
+ $('orientBar').hidden=S.mode==='sculpt';
+ $('sidebar').style.top=S.mode==='edit'?'calc(240px + var(--top))':S.mode==='sculpt'?'calc(128px + var(--top))':'calc(182px + var(--top))';syncPropPanel();syncSculptPanel();
+ $('undo').disabled=!(H.u.length||(S.mode==='sculpt'&&SC.undo.length));$('redo').disabled=!(H.r.length||(S.mode==='sculpt'&&SC.redo.length));
  const r=$('rail');r.innerHTML='';const tool=t=>()=>{S.tool=t;ui();draw()};
- ['select','move','rotate','scale'].forEach(t=>r.append(btn(t,t[0].toUpperCase()+t.slice(1),t,tool(t),S.tool===t?'on':'')));r.append(Object.assign(document.createElement('i'),{className:'sep'}));
- if(S.mode==='object'){r.append(btn('add','Add','add',()=>sheet('add')),btn('dup','Duplicate','dup',dupObjects),btn('del','Delete','del',delObjects))}
- else{r.append(btn('extrude','Extrude','extrude',()=>runOp('extrude')),btn('inset','Inset','inset',()=>runOp('inset')),btn('bevel','Bevel','bevel',()=>runOp('bevel')),
-  btn('loop','Loop Cut','loop',()=>{S.tool=S.tool==='loop'?'select':'loop';ui();if(S.tool==='loop')toast('Tap an edge — the cut runs across it')},S.tool==='loop'?'on':''),btn('subd','Subdivide','subd',()=>runOp('subd')),btn('merge','Merge','merge',()=>runOp('merge')),btn('del','Delete','del',()=>runOp('del')))}
- const o=act();let st='';if(o){const c=M.check(o.mesh),ln=activeLayer().name;st=S.mode==='edit'?`${o.name} · ${ln} · V ${selVerts().size}/${c.verts} · E ${c.edges} · F ${S.fs.size}/${c.faces}${c.closed?'':c.manifold?' · open':' · non-manifold'}`:`${S.objs.length} object${S.objs.length===1?'':'s'} · ${S.osel.size} selected · ${ln}`;if(st)st+=' · '+(S.orient==='global'?'GLB':S.orient==='local'?'LOC':'NRM')+(S.prop&&S.mode==='edit'?' · PROP':'')}$('status').textContent=st;if($('layerWrap')&&!$('layerWrap').hidden){try{renderLayers()}catch(err){console.warn(err)}}}
+ if(S.mode==='sculpt'){r.append(btn('ball','Ball','add',()=>addClayBall()),btn('convert','Convert','subd',()=>convertToSculpt()));r.append(Object.assign(document.createElement('i'),{className:'sep'}));
+  SC_BRUSHES.forEach(b=>r.append(btn(b.id,b.label,b.icon,()=>setSculptBrush(b.id),SC.brush===b.id?'on':'')))}
+ else{['select','move','rotate','scale'].forEach(t=>r.append(btn(t,t[0].toUpperCase()+t.slice(1),t,tool(t),S.tool===t?'on':'')));r.append(Object.assign(document.createElement('i'),{className:'sep'}));
+  if(S.mode==='object'){r.append(btn('add','Add','add',()=>sheet('add')),btn('dup','Duplicate','dup',dupObjects),btn('del','Delete','del',delObjects))}
+  else{r.append(btn('extrude','Extrude','extrude',()=>runOp('extrude')),btn('inset','Inset','inset',()=>runOp('inset')),btn('bevel','Bevel','bevel',()=>runOp('bevel')),
+   btn('loop','Loop Cut','loop',()=>{S.tool=S.tool==='loop'?'select':'loop';ui();if(S.tool==='loop')toast('Tap an edge — the cut runs across it')},S.tool==='loop'?'on':''),btn('subd','Subdivide','subd',()=>runOp('subd')),btn('merge','Merge','merge',()=>runOp('merge')),btn('del','Delete','del',()=>runOp('del')))}}
+ const o=act();let st='';if(o){const ln=activeLayer().name;
+  if(S.mode==='sculpt'){const br=SC_BRUSHES.find(b=>b.id===SC.brush);st=`Sculpt · ${o.kind==='sculpt'?o.name:'no clay'} · ${br?br.label:''}${o.kind==='sculpt'?' · '+o.mesh.verts.length+' verts':''}${SC.mirror?' · mirror X':''}`}
+  else if(o.mesh.verts.length>2500)st=`${o.name} · ${ln} · ${o.mesh.verts.length} verts · ${o.mesh.faces.length} faces`;
+  else{const c=M.check(o.mesh);st=S.mode==='edit'?`${o.name} · ${ln} · V ${selVerts().size}/${c.verts} · E ${c.edges} · F ${S.fs.size}/${c.faces}${c.closed?'':c.manifold?' · open':' · non-manifold'}`:`${S.objs.length} object${S.objs.length===1?'':'s'} · ${S.osel.size} selected · ${ln}`;if(st)st+=' · '+(S.orient==='global'?'GLB':S.orient==='local'?'LOC':'NRM')+(S.prop&&S.mode==='edit'?' · PROP':'')}}
+ $('status').textContent=st;if($('layerWrap')&&!$('layerWrap').hidden){try{renderLayers()}catch(err){console.warn(err)}}}
 let tt;function toast(s){const t=$('toast');t.textContent=s;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),1900)}
 function changed(save=true){rebuild();ui();if(bootReady&&!S.adjust)tlRecord();if(bootReady&&save!==false)persistOpen(false)}
 document.querySelectorAll('#modeSeg button').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));document.querySelectorAll('#selbar button').forEach(b=>b.onclick=()=>setSM(b.dataset.sm));
@@ -801,8 +1039,9 @@ $('tlBtn').onclick=()=>openTL();$('undo').onclick=undo;$('redo').onclick=redo;$(
 function closeSheet(){$('sheetWrap').hidden=true}
 function sheet(kind){const s=$('sheet');s.innerHTML='';const h=t=>{const e=document.createElement('h2');e.textContent=t;s.append(e)},mk=(cls,items)=>{const g=document.createElement('div');g.className=cls;items.forEach(([id,l,fn,d])=>{const b=document.createElement('button');b.id=id;b.innerHTML=`<span>${l}</span>${d?`<span style="color:var(--muted)">${d}</span>`:''}`;b.onclick=fn;g.append(b)});s.append(g)};
  const prims=mk.bind(null,'grid',[['p-cube','Cube',()=>addPrim('cube')],['p-plane','Plane',()=>addPrim('plane')],['p-cylinder','Cylinder',()=>addPrim('cylinder')],['p-sphere','Sphere',()=>addPrim('sphere')]]);
- if(kind==='add'){h('ADD MESH');prims()}
- else{h('ADD MESH');prims();h('PROJECT');mk('list',[['m-save','Save to library',saveLib],['m-lib','Open library…',()=>sheet('lib'),libList().length+' saved'],['m-gal','Gallery…',()=>{closeSheet();galOpen()}],['m-new','New scene',()=>{closeSheet();newScene()}],['m-obj','Export OBJ',exportOBJ,'visible'],['m-tl','Timelapse',()=>{closeSheet();openTL()},TLF.length+' steps'],['m-tlclear','Clear timelapse history',()=>{tlClear();closeSheet()}],['m-name','Rename app title',()=>{const n=prompt('App title',APP.name);if(n){APP.name=n.slice(0,24);localStorage.setItem('bf-name',APP.name);document.title=APP.name;ui()}},APP.name]]);
+ const clayRow=()=>{h('SCULPT');mk('list',[['p-clay','Clay ball',()=>{closeSheet();enterSculpt(true);addClayBall()},'sculpt']])};
+ if(kind==='add'){h('ADD MESH');prims();clayRow()}
+ else{h('ADD MESH');prims();clayRow();h('PROJECT');mk('list',[['m-save','Save to library',saveLib],['m-lib','Open library…',()=>sheet('lib'),libList().length+' saved'],['m-gal','Gallery…',()=>{closeSheet();galOpen()}],['m-new','New scene',()=>{closeSheet();newScene()}],['m-obj','Export OBJ',exportOBJ,'visible'],['m-tl','Timelapse',()=>{closeSheet();openTL()},TLF.length+' steps'],['m-tlclear','Clear timelapse history',()=>{tlClear();closeSheet()}],['m-name','Rename app title',()=>{const n=prompt('App title',APP.name);if(n){APP.name=n.slice(0,24);localStorage.setItem('bf-name',APP.name);document.title=APP.name;ui()}},APP.name]]);
   h('VIEW');mk('list',[['v-front','Front',()=>{snapView(new THREE.Vector3(0,-1,0));closeSheet()}],['v-top','Top',()=>{snapView(new THREE.Vector3(0,0,1));closeSheet()}],['v-persp','Reset perspective',()=>{orbit.th=-Math.PI/2+.75;orbit.ph=.5;frame();closeSheet()}]])}
  if(kind==='lib'){s.innerHTML='';h('LIBRARY');const L=libList();if(!L.length){const p=document.createElement('p');p.style.cssText='color:var(--muted);font-size:13px;padding:6px';p.textContent='Nothing saved yet.';s.append(p)}
   mk('list',L.map((it,i)=>['lib-'+i,it.name,()=>{closeSheet();openSavedFile(it);frame();toast('Opened '+(it.name||'project'))},new Date(it.date).toLocaleDateString()]));const nt=document.createElement('div');nt.id='libNote';nt.className='libnote';nt.innerHTML=storageNote();s.querySelector('h2').after(nt)}
@@ -814,7 +1053,7 @@ function activeLayer(){if(!S.layers.length)applyLayers(null);let L=layerById(S.a
 function objLayer(o){if(!S.layers.length)applyLayers(null);let L=o&&layerById(o.layer);if(!L){if(o)o.layer=S.layers[0].id;L=S.layers[0]}return L}
 function layerVisible(o){return objLayer(o).visible!==false}
 function layerLocked(o){return !!objLayer(o).locked}
-function noteLayerBlocks(){S.osel=new Set([...S.osel].filter(i=>{const o=S.objs[i];return o&&layerVisible(o)&&!layerLocked(o)}));const o=S.objs[S.active];if(S.mode==='edit'&&(!o||!layerVisible(o)||layerLocked(o))){clearSel();if(S.adjust)closeAdjust(true);S.mode='object';if(!['select','move','rotate','scale'].includes(S.tool))S.tool='select';return o&&layerLocked(o)?'locked':'hidden'}return ''}
+function noteLayerBlocks(){S.osel=new Set([...S.osel].filter(i=>{const o=S.objs[i];return o&&layerVisible(o)&&!layerLocked(o)}));const o=S.objs[S.active];if((S.mode==='edit'||S.mode==='sculpt')&&(!o||!layerVisible(o)||layerLocked(o))){clearSel();if(S.adjust)closeAdjust(true);S.mode='object';if(!['select','move','rotate','scale'].includes(S.tool))S.tool='select';return o&&layerLocked(o)?'locked':'hidden'}return ''}
 function setClean(on){on=!!on;if(on){try{closeLayers()}catch(e){}try{closeSheet()}catch(e){}}document.body.classList.toggle('clean',on);const b=$('tlClean');if(b)b.classList.toggle('on',on);draw()}
 function openLayers(){try{closeSheet()}catch(e){}layerDel=0;$('layerWrap').hidden=false;renderLayers()}
 function closeLayers(){layerDel=0;const w=$('layerWrap');if(w)w.hidden=true}
@@ -841,7 +1080,7 @@ function persistOpen(updateLib){if(!bootReady||!fileId||!BFStore.ready)return;co
 function commitOpenFile(){if(!bootReady||!fileId||!BFStore.ready)return;try{tlEnsureEnd()}catch(e){}persistOpen(true)}
 function flushAll(){try{commitOpenFile()}catch(e){}}
 addEventListener('pagehide',flushAll);addEventListener('beforeunload',flushAll);document.addEventListener('visibilitychange',()=>{if(document.hidden)flushAll()});
-function resetEditState(){H.u.length=0;H.r.length=0;S.mode='object';clearSel();S.adjust=null;const adj=$('adjust');if(adj)adj.hidden=true;const vis=S.objs.findIndex(o=>o&&layerVisible(o)&&!layerLocked(o));S.active=vis>=0?vis:0;S.osel=new Set(vis>=0?[vis]:[])}
+function resetEditState(){H.u.length=0;H.r.length=0;sculptClearHist();S.mode='object';clearSel();S.adjust=null;const adj=$('adjust');if(adj)adj.hidden=true;const vis=S.objs.findIndex(o=>o&&layerVisible(o)&&!layerLocked(o));S.active=vis>=0?vis:0;S.osel=new Set(vis>=0?[vis]:[])}
 function newScene(){commitOpenFile();fileId=makeId();applyLayers(null);S.objs=[newObj('Cube 1',M.cube())];resetEditState();TLF.length=0;tlLast='';changed(true);frame()}
 function openSavedFile(it){if(!it||typeof it!=='object')return;const L=libList();if(!it.id){it.id=makeId();BFStore.set('bf-lib',L);BFStore.flushSync(['bf-lib'])}
  if(it.id===fileId){try{syncLibItem(sceneData());BFStore.flushSync(['bf-lib','bf-scene','bf-file:'+fileId])}catch(e){}return}
@@ -864,7 +1103,7 @@ function exportOBJ(){const vis=S.objs.filter(layerVisible),hid=S.objs.length-vis
  function galOpen(){commitOpenFile();galRender();$('gal').hidden=false}
  function galClose(){$('gal').hidden=true}
  function galRenderer(){if(GAL.rt)return GAL.rt;const gl=document.createElement('canvas');gl.width=440;gl.height=330;const r=new THREE.WebGLRenderer({canvas:gl,antialias:true,preserveDrawingBuffer:true});r.setClearColor(0x0a111c);const sc=new THREE.Scene();sc.add(new THREE.HemisphereLight(0xdfe8ef,0x1b232c,.9));const k=new THREE.DirectionalLight(0xffffff,.8);k.position.set(4,-6,9);sc.add(k);const rm=new THREE.DirectionalLight(0x9fdcea,.3);rm.position.set(-6,7,-3);sc.add(rm);const c=new THREE.PerspectiveCamera(40,440/330,.05,500);c.up.set(0,0,1);GAL.rt={r,gl,sc,c};return GAL.rt}
-function galThumbURL(it){const key=it.date+'|'+it.name;if(GAL.cache.has(key))return GAL.cache.get(key);let url='';try{const objs=JSON.parse(it.scene);if(!Array.isArray(objs)||!objs.length)throw 0;const T=galRenderer(),g=new THREE.Group(),pts=[];const hide=new Set((Array.isArray(it.layers)?it.layers:[]).filter(l=>l&&l.visible===false).map(l=>l.id));objs.forEach(o=>{if(o&&o.layer!=null&&hide.has(o.layer))return;const V=o.mesh.verts;V.forEach(p=>pts.push(new THREE.Vector3(p[0],p[1],p[2])));const pos3=[];o.mesh.faces.forEach(f=>{for(let j=1;j<f.length-1;j++){pos3.push(...V[f[0]],...V[f[j]],...V[f[j+1]])}});const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(pos3,3));geo.computeVertexNormals();g.add(new THREE.Mesh(geo,tlMat));const lp=[],seen=new Set();o.mesh.faces.forEach(f=>f.forEach((a,j)=>{const b=f[(j+1)%f.length],kk=a<b?a+'_'+b:b+'_'+a;if(!seen.has(kk)){seen.add(kk);lp.push(...V[a],...V[b])}}));const lg=new THREE.BufferGeometry();lg.setAttribute('position',new THREE.Float32BufferAttribute(lp,3));g.add(new THREE.LineSegments(lg,tlLine))});if(!pts.length)throw 0;T.sc.add(g);const bb=new THREE.Box3().setFromPoints(pts),ctr=bb.getCenter(new THREE.Vector3()),size=Math.max(1,bb.getSize(new THREE.Vector3()).length()),th=-.8,ph=.45,rr=size*1.55,cc=Math.cos(ph);T.c.position.set(ctr.x+rr*cc*Math.cos(th),ctr.y+rr*cc*Math.sin(th),ctr.z+rr*Math.sin(ph));T.c.lookAt(ctr);T.r.render(T.sc,T.c);T.sc.remove(g);g.children.forEach(ch=>ch.geometry.dispose());const out=document.createElement('canvas');out.width=440;out.height=330;out.getContext('2d').drawImage(T.gl,0,0);url=out.toDataURL('image/jpeg',.72)}catch(e){url=''}GAL.cache.set(key,url);return url}
+function galThumbURL(it){const key=it.date+'|'+it.name;if(GAL.cache.has(key))return GAL.cache.get(key);let url='';try{const objs=JSON.parse(it.scene);if(!Array.isArray(objs)||!objs.length)throw 0;const T=galRenderer(),g=new THREE.Group(),pts=[];const hide=new Set((Array.isArray(it.layers)?it.layers:[]).filter(l=>l&&l.visible===false).map(l=>l.id));objs.forEach(o=>{if(o&&o.layer!=null&&hide.has(o.layer))return;const V=o.mesh.verts;V.forEach(p=>pts.push(new THREE.Vector3(p[0],p[1],p[2])));const pos3=[];o.mesh.faces.forEach(f=>{for(let j=1;j<f.length-1;j++){pos3.push(...V[f[0]],...V[f[j]],...V[f[j+1]])}});const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(pos3,3));geo.computeVertexNormals();g.add(new THREE.Mesh(geo,tlMat));const lp=[],seen=new Set();if(o.mesh.faces.length<=5000)o.mesh.faces.forEach(f=>f.forEach((a,j)=>{const b=f[(j+1)%f.length],kk=a<b?a+'_'+b:b+'_'+a;if(!seen.has(kk)){seen.add(kk);lp.push(...V[a],...V[b])}}));const lg=new THREE.BufferGeometry();lg.setAttribute('position',new THREE.Float32BufferAttribute(lp,3));g.add(new THREE.LineSegments(lg,tlLine))});if(!pts.length)throw 0;T.sc.add(g);const bb=new THREE.Box3().setFromPoints(pts),ctr=bb.getCenter(new THREE.Vector3()),size=Math.max(1,bb.getSize(new THREE.Vector3()).length()),th=-.8,ph=.45,rr=size*1.55,cc=Math.cos(ph);T.c.position.set(ctr.x+rr*cc*Math.cos(th),ctr.y+rr*cc*Math.sin(th),ctr.z+rr*Math.sin(ph));T.c.lookAt(ctr);T.r.render(T.sc,T.c);T.sc.remove(g);g.children.forEach(ch=>ch.geometry.dispose());const out=document.createElement('canvas');out.width=440;out.height=330;out.getContext('2d').drawImage(T.gl,0,0);url=out.toDataURL('image/jpeg',.72)}catch(e){url=''}GAL.cache.set(key,url);return url}
  function galRender(){const L=libList(),F=galFolders(),body=$('galBody');body.innerHTML='';$('galCount').textContent=L.length+' saved project'+(L.length===1?'':'s');const names=F.slice();L.forEach(it=>{if(it.folder&&!names.includes(it.folder))names.push(it.folder)});const secs=[''].concat(names);let shown=false;secs.forEach(fname=>{const items=[];L.forEach((it,i)=>{if((it.folder||'')===fname)items.push([it,i])});if(!items.length&&!fname)return;shown=true;const sec=document.createElement('div');const hd=document.createElement('div');hd.className='gsecHd';const t=document.createElement('b');t.textContent=fname||'Projects';hd.append(t);const c=document.createElement('span');c.className='gcnt';c.textContent=items.length;hd.append(c);if(fname){const rn=document.createElement('button');rn.className='mini glass';rn.textContent='Rename';rn.onclick=()=>galRenameFolder(fname);hd.append(rn);const dl=document.createElement('button');dl.className='mini glass';dl.textContent='Delete';dl.onclick=()=>galDeleteFolder(fname);hd.append(dl)}sec.append(hd);const grid=document.createElement('div');grid.className='lgrid';items.forEach(([it,i])=>grid.append(galCard(it,i)));sec.append(grid);body.append(sec)});if(!L.length){const e=document.createElement('div');e.className='gempty';e.innerHTML='<b>No saved projects yet</b><span>Model something, then tap Save current. Folders keep your projects organized, like TRACE.</span>';body.append(e)}}
  function galCard(it,i){const card=document.createElement('div');card.className='gcard';const url=galThumbURL(it);if(url){const im=document.createElement('img');im.src=url;im.alt='';card.append(im)}else{const d=document.createElement('div');d.className='gph';d.textContent='\u25a7';card.append(d)}const nm=document.createElement('b');nm.textContent=it.name;card.append(nm);let nobj=0;try{nobj=JSON.parse(it.scene).length}catch(e){}const mt=document.createElement('span');mt.className='gmeta';mt.textContent=new Date(it.date).toLocaleDateString()+' \u00b7 '+nobj+' object'+(nobj===1?'':'s');card.append(mt);card.onclick=()=>galOpenProject(i);const dots=document.createElement('button');dots.className='gdots glass';dots.textContent='\u22ef';dots.onclick=e=>{e.stopPropagation();galItemSheet(i)};card.append(dots);return card}
  function galOpenProject(i){const L=libList(),it=L[i];if(!it)return;openSavedFile(it);galClose();closeSheet();frame();toast('Opened '+it.name)}
@@ -913,7 +1152,7 @@ function galThumbURL(it){const key=it.date+'|'+it.name;if(GAL.cache.has(key))ret
   while(T.g.children.length){const c=T.g.children.pop();c.geometry.dispose()}
   tlPair(i).forEach(o=>{const V=o.to.map((pt,k)=>{const a=o.from[k]||pt;return[a[0]+(pt[0]-a[0])*e,a[1]+(pt[1]-a[1])*e,a[2]+(pt[2]-a[2])*e]});
    const pos3=[];o.f.forEach(f=>{for(let j=1;j<f.length-1;j++)for(const k of[f[0],f[j],f[j+1]])if(V[k])pos3.push(...V[k])});const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos3,3));g.computeVertexNormals();T.g.add(new THREE.Mesh(g,tlMat));
-   const lp=[],seen=new Set();o.f.forEach(f=>f.forEach((a,j)=>{const b=f[(j+1)%f.length],kk=a<b?a+'_'+b:b+'_'+a;if(!seen.has(kk)&&V[a]&&V[b]){seen.add(kk);lp.push(...V[a],...V[b])}}));const lg=new THREE.BufferGeometry();lg.setAttribute('position',new THREE.Float32BufferAttribute(lp,3));T.g.add(new THREE.LineSegments(lg,tlLine))});
+   const lp=[],seen=new Set();if(o.f.length<=5000)o.f.forEach(f=>f.forEach((a,j)=>{const b=f[(j+1)%f.length],kk=a<b?a+'_'+b:b+'_'+a;if(!seen.has(kk)&&V[a]&&V[b]){seen.add(kk);lp.push(...V[a],...V[b])}}));const lg=new THREE.BufferGeometry();lg.setAttribute('position',new THREE.Float32BufferAttribute(lp,3));T.g.add(new THREE.LineSegments(lg,tlLine))});
   tlPaint();const sc=$('tlScrub');sc.min=0;sc.max=Math.max(0,n-1);sc.value=pos;$('tlCount').textContent=(Math.round(pos)+1)+' / '+n}
  function tlPaint(){const T=TL,o=T.o;o.ph=Math.max(-1.5,Math.min(1.5,o.ph));const c=Math.cos(o.ph);T.c.position.set(o.t.x+o.r*c*Math.cos(o.th),o.t.y+o.r*c*Math.sin(o.th),o.t.z+o.r*Math.sin(o.ph));T.c.lookAt(o.t);
   T.r.render(T.sc,T.c);const x=$('tlC').getContext('2d');x.drawImage(T.gl,0,0);
@@ -971,7 +1210,7 @@ function galThumbURL(it){const key=it.date+'|'+it.name;if(GAL.cache.has(key))ret
    try{dropLegacyTl()}catch(e){}
    try{tlEnsureEnd()}catch(e){}
    {const vis=S.objs.findIndex(o=>o&&layerVisible(o)&&!layerLocked(o));S.active=vis>=0?vis:0;S.osel=new Set(vis>=0?[vis]:[])}bootReady=true;changed(false);try{commitOpenFile()}catch(e){}ui();galOpen();window.BF_READY=true}).catch(err=>{console.error(err);bootReady=true;if(!fileId)fileId=makeId();window.BF_READY=true})})();
- window.BF={store:BFStore,libList,saveLib,storageNote,TLF,fileId:()=>fileId,newScene,openSavedFile,tlClear,commitOpenFile,tlSegs:()=>[{name:'file',start:0,frames:TLF.length}],tlRecord,openTL,closeTL,tlShow,tlExport,tlSetAuto,tlSetPlay,pickVideoType,get TL(){return TL},S,M,H,cam,gCam,orbit,runOp,setMode,setSM,selectAll,undo,redo,addPrim,tapSelect,proj,pick,snapView,draw,render,rebuild,ui,toOBJ:()=>M.toOBJ(S.objs),check:()=>M.check(act().mesh),gizmoRect,frame,setClean,applyLayers,setOrient,setProp,setFalloff,setPropR,setTool,handles,beginTransform,moveTransform,endTransform,syncLive};
+ window.BF={store:BFStore,libList,saveLib,storageNote,TLF,fileId:()=>fileId,newScene,openSavedFile,tlClear,commitOpenFile,tlSegs:()=>[{name:'file',start:0,frames:TLF.length}],tlRecord,openTL,closeTL,tlShow,tlExport,tlSetAuto,tlSetPlay,pickVideoType,get TL(){return TL},S,M,H,cam,gCam,orbit,runOp,setMode,setSM,selectAll,undo,redo,addPrim,tapSelect,proj,pick,snapView,draw,render,rebuild,ui,toOBJ:()=>M.toOBJ(S.objs),check:()=>M.check(act().mesh),gizmoRect,frame,setClean,applyLayers,setOrient,setProp,setFalloff,setPropR,setTool,handles,beginTransform,moveTransform,endTransform,syncLive,addClayBall,convertToSculpt,enterSculpt,setSculptBrush,sculptDabWorld,sculptUndo,sculptRedo,get SC(){return SC}};
 
 /* ---------- journal ---------- */
 const JT={note:'Note',how:'How it should work',bug:'Bug'};
