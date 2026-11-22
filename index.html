@@ -222,6 +222,60 @@ M.densify=function(mesh,target){const m={verts:(mesh.verts||[]).map(v=>v.slice()
  let guard=0;target=target||2400;
  while(m.verts.length<target&&guard++<8){if(m.faces.length*4>40000||m.verts.length>14000)break;sub()}
  return m};
+/* Loop subdivision: new edge points pull in the opposite corners, old points relax toward their neighbors.
+   One step rounds a faceted mesh and multiplies the triangle count by four. */
+M.loopSubdiv=function(mesh){
+ const m={verts:(mesh.verts||[]).map(v=>v.slice()),faces:[],wires:[]};
+ for(const f of (mesh.faces||[])){if(!f||f.length<3)continue;if(f.length===3)m.faces.push(f.slice());else for(let i=1;i<f.length-1;i++)m.faces.push([f[0],f[i],f[i+1]])}
+ const n=m.verts.length,ek=(a,b)=>a<b?a+'_'+b:b+'_'+a,edges=new Map(),neigh=Array.from({length:n},()=>[]);
+ const addN=(a,b)=>{const nb=neigh[a];if(nb&&nb.indexOf(b)<0)nb.push(b)};
+ for(const f of m.faces){if(f.length!==3)continue;for(let i=0;i<3;i++){const a=f[i],b=f[(i+1)%3],c=f[(i+2)%3];addN(a,b);const k=ek(a,b);let e=edges.get(k);if(!e){e={a:Math.min(a,b),b:Math.max(a,b),opp:[]};edges.set(k,e)}e.opp.push(c)}}
+ const edgePos=new Map();
+ for(const [k,e] of edges){const A=m.verts[e.a],B=m.verts[e.b];let p;
+  if(e.opp.length>=2){const C=m.verts[e.opp[0]],D=m.verts[e.opp[1]];p=[(A[0]+B[0])*0.375+(C[0]+D[0])*0.125,(A[1]+B[1])*0.375+(C[1]+D[1])*0.125,(A[2]+B[2])*0.375+(C[2]+D[2])*0.125]}
+  else p=[(A[0]+B[0])*0.5,(A[1]+B[1])*0.5,(A[2]+B[2])*0.5];
+  edgePos.set(k,p)}
+ const boundary=Array.from({length:n},()=>[]);
+ for(const e of edges.values())if(e.opp.length<2){boundary[e.a].push(e.b);boundary[e.b].push(e.a)}
+ const nv=m.verts.map((v,i)=>{const nb=neigh[i];if(!nb||!nb.length)return v.slice();
+  if(boundary[i].length>=2){const A=m.verts[boundary[i][0]],B=m.verts[boundary[i][1]];return [v[0]*0.75+(A[0]+B[0])*0.125,v[1]*0.75+(A[1]+B[1])*0.125,v[2]*0.75+(A[2]+B[2])*0.125]}
+  const nbs=nb.length,beta=nbs===3?3/16:(1/nbs)*(5/8-Math.pow(3/8+0.25*Math.cos(2*Math.PI/nbs),2));
+  let sx=0,sy=0,sz=0;for(const j of nb){const p=m.verts[j];sx+=p[0];sy+=p[1];sz+=p[2]}
+  const w=1-nbs*beta;return [w*v[0]+beta*sx,w*v[1]+beta*sy,w*v[2]+beta*sz]});
+ const eIndex=new Map();let id=nv.length;for(const [k,p] of edgePos){eIndex.set(k,id);nv.push(p);id++}
+ const faces=[];for(const f of m.faces){if(f.length!==3)continue;const ab=eIndex.get(ek(f[0],f[1])),bc=eIndex.get(ek(f[1],f[2])),ca=eIndex.get(ek(f[2],f[0]));faces.push([f[0],ab,ca],[f[1],bc,ab],[f[2],ca,bc],[ab,bc,ca])}
+ return {verts:nv,faces,wires:[]}};
+/* Y-up file coordinates become Blockform's Z-up: (x, y, z) -> (x, -z, y). That matches the OBJ export. */
+function yUpToZ(v){return [v[0],-v[2],v[1]]}
+M.fromOBJ=function(text){const verts=[],faces=[];if(typeof text!=='string')return null;
+ for(const line of text.split(/\r?\n/)){const s=line.trim();if(!s||s[0]==='#')continue;const p=s.split(/\s+/);
+  if(p[0]==='v'&&p.length>=4)verts.push([+p[1],+p[2],+p[3]]);
+  else if(p[0]==='f'&&p.length>=4){const ids=[];for(let i=1;i<p.length;i++){const n=+String(p[i]).split('/')[0];if(!n)continue;const id=n<0?verts.length+n:n-1;if(id>=0&&id<verts.length)ids.push(id)}
+   for(let i=1;i<ids.length-1;i++)faces.push([ids[0],ids[i],ids[i+1]])}}
+ if(!verts.length||!faces.length)return null;return {verts:verts.map(yUpToZ),faces,wires:[]}};
+M.fromSTL=function(buf){if(buf==null)return null;
+ const asText=typeof buf==='string'?buf:(buf.byteLength<8e6?new TextDecoder().decode(new Uint8Array(buf)):'');
+ const head=asText.slice(0,200).trim().toLowerCase();
+ if(head.startsWith('solid')&&/facet/.test(asText.slice(0,4000))){const verts=[],faces=[];let cur=[];
+  for(const line of asText.split(/\r?\n/)){const s=line.trim();if(/^vertex/i.test(s)){const p=s.split(/\s+/);cur.push([+p[1],+p[2],+p[3]])}else if(/^endfacet/i.test(s)&&cur.length>=3){const b=verts.length;verts.push(cur[0],cur[1],cur[2]);faces.push([b,b+1,b+2]);cur=[]}}
+  if(!faces.length)return null;return {verts:verts.map(yUpToZ),faces,wires:[]}}
+ if(typeof buf==='string'||!buf.byteLength)return null;const dv=new DataView(buf);if(dv.byteLength<84)return null;const count=dv.getUint32(80,true);if(84+count*50>dv.byteLength+50)return null;
+ const verts=[],faces=[];for(let i=0;i<count;i++){const o=84+i*50;const tri=[];for(let k=0;k<3;k++){const q=o+12+k*12;tri.push([dv.getFloat32(q,true),dv.getFloat32(q+4,true),dv.getFloat32(q+8,true)])}const b=verts.length;verts.push(tri[0],tri[1],tri[2]);faces.push([b,b+1,b+2])}
+ if(!faces.length)return null;return {verts:verts.map(yUpToZ),faces,wires:[]}};
+M.fromGLB=function(buf){if(!buf||typeof buf==='string'||buf.byteLength<28)return null;const dv=new DataView(buf);if(dv.getUint32(0,true)!==0x46546C67)return null;
+ const jsonLen=dv.getUint32(12,true);if(20+jsonLen+8>dv.byteLength)return null;let json;try{json=JSON.parse(new TextDecoder().decode(new Uint8Array(buf,20,jsonLen)).replace(/\0+$/,'').trim())}catch(e){return null}
+ const binStart=20+jsonLen+8,binLen=dv.getUint32(20+jsonLen,true);if(binStart+binLen>dv.byteLength)return null;const bin=new DataView(buf,binStart,binLen);
+ const compSize={5120:1,5121:1,5122:2,5123:2,5125:4,5126:4},ncomp={SCALAR:1,VEC2:2,VEC3:3,VEC4:4};
+ const read=acc=>{if(!acc||acc.bufferView==null)return null;const view=json.bufferViews[acc.bufferView];if(!view)return null;const cs=compSize[acc.componentType]||4,nc=ncomp[acc.type]||1,count=acc.count|0;
+  const start=(view.byteOffset||0)+(acc.byteOffset||0),stride=view.byteStride||cs*nc;if(start+count*stride>bin.byteLength+4)return null;
+  if(acc.componentType===5126){const out=new Float32Array(count*nc);for(let i=0;i<count;i++)for(let k=0;k<nc;k++)out[i*nc+k]=bin.getFloat32(start+i*stride+k*4,true);return out}
+  const out=new Uint32Array(count*nc);for(let i=0;i<count;i++)for(let k=0;k<nc;k++){const p=start+i*stride+k*cs;let v=0;if(acc.componentType===5121)v=bin.getUint8(p);else if(acc.componentType===5123)v=bin.getUint16(p,true);else if(acc.componentType===5125)v=bin.getUint32(p,true);else return null;out[i*nc+k]=v}return out};
+ const mesh=json.meshes&&json.meshes[0];if(!mesh)return null;const verts=[],faces=[];
+ for(const prim of mesh.primitives||[]){if(prim.mode!=null&&prim.mode!==4)continue;const pa=prim.attributes&&json.accessors[prim.attributes.POSITION];const pos=read(pa);if(!pos)continue;const base=verts.length;
+  for(let i=0;i<pos.length;i+=3)verts.push(yUpToZ([pos[i],pos[i+1],pos[i+2]]));
+  if(prim.indices!=null){const idx=read(json.accessors[prim.indices]);if(!idx)continue;for(let i=0;i+2<idx.length;i+=3)faces.push([base+idx[i],base+idx[i+1],base+idx[i+2]])}
+  else {const nv=pos.length/3;for(let i=0;i+2<nv;i+=3)faces.push([base+i,base+i+1,base+i+2])}}
+ if(!verts.length||!faces.length)return null;return {verts,faces,wires:[]}};
 /* selection conversions (vertex set is the truth) */
 M.facesFromVerts=(m,vs)=>m.faces.map((f,i)=>f.every(x=>vs.has(x))?i:-1).filter(i=>i>=0);
 M.edgesFromVerts=(m,vs)=>[...M.edges(m).keys()].filter(k=>{const [a,b]=k.split('_').map(Number);return vs.has(a)&&vs.has(b)});
@@ -589,7 +643,8 @@ sclay:'<path d="M4 16c1.6-6 14.4-6 16 0"/><path d="M4 16h16"/><path d="M12 10.2v
 screase:'<path d="M4 7.5 12 18 20 7.5"/><path d="M7.5 7.5h9"/>',
 sinflate:'<circle cx="12" cy="12" r="6.5"/><path d="M12 3.5v2.2M12 18.3v2.2M3.5 12h2.2M18.3 12h2.2"/>',
 sflat:'<path d="M4 16h16"/><path d="M7 12.5 12 8l5 4.5"/>',
-spinch:'<path d="M4 7.5 10.5 12 4 16.5M20 7.5 13.5 12 20 16.5"/>'};
+spinch:'<path d="M4 7.5 10.5 12 4 16.5M20 7.5 13.5 12 20 16.5"/>',
+slayer:'<path d="M4 17c2.2-3.2 4.4-4.2 8-4.2s5.8 1 8 4.2"/><path d="M4 12.5c2.2-3.2 4.4-4.2 8-4.2s5.8 1 8 4.2" opacity=".7"/>'};
 const S={objs:[],active:0,mode:'object',sm:'f',tool:'select',multi:false,xray:false,vs:new Set(),es:new Set(),fs:new Set(),osel:new Set([0]),adjust:null,layers:[{id:1,name:'Layer 1',visible:true,locked:false}],activeLayer:1,orient:'global',prop:false,falloff:'smooth',propR:1};
 (()=>{const ok=v=>['global','local','normal'].includes(v),fo=v=>['smooth','sharp','linear','constant'].includes(v);const o=pref('bf-orient','global'),f=pref('bf-falloff','smooth'),r=+pref('bf-propR','1');S.orient=ok(o)?o:'global';S.prop=pref('bf-prop','0')==='1';S.falloff=fo(f)?f:'smooth';S.propR=(r>=0.05&&r<=30)?r:1})();
 let uid=1,lidSeq=1,layerDel=0;const newObj=(name,mesh,layer)=>{if(!S.layers.length)applyLayers(null);let lid=layer!=null?+layer:+S.activeLayer;if(!S.layers.some(l=>l.id===lid))lid=S.layers[0].id;return {id:uid++,name,mesh,layer:lid,basis:[[1,0,0],[0,1,0],[0,0,1]]}};
@@ -805,17 +860,26 @@ addEventListener('keydown',e=>{const tag=e.target&&e.target.tagName;if(tag==='IN
    Rendering uses one indexed buffer and smooth normals, and skips the wireframe,
    so a few thousand triangles stay usable on a phone. Strokes undo by restoring
    vertex positions; the mesh itself still saves with the rest of the scene. */
-const SC_BRUSHES=[{id:'draw',label:'Draw',icon:'sdraw'},{id:'smooth',label:'Smooth',icon:'ssmooth'},{id:'grab',label:'Grab',icon:'sgrab'},{id:'clay',label:'Clay',icon:'sclay'},{id:'crease',label:'Crease',icon:'screase'},{id:'inflate',label:'Inflate',icon:'sinflate'},{id:'flatten',label:'Flat',icon:'sflat'},{id:'pinch',label:'Pinch',icon:'spinch'}];
-const SC={brush:'draw',size:72,strength:0.5,mirror:true,invert:false,undo:[],redo:[],cache:new Map(),stroke:null,cursor:null};
+const SC_BRUSHES=[{id:'draw',label:'Draw',icon:'sdraw'},{id:'layer',label:'Layer',icon:'slayer'},{id:'smooth',label:'Smooth',icon:'ssmooth'},{id:'grab',label:'Grab',icon:'sgrab'},{id:'clay',label:'Clay',icon:'sclay'},{id:'crease',label:'Crease',icon:'screase'},{id:'inflate',label:'Inflate',icon:'sinflate'},{id:'flatten',label:'Flat',icon:'sflat'},{id:'pinch',label:'Pinch',icon:'spinch'}];
+const SC={brush:'draw',size:72,strength:0.5,mirror:true,invert:false,detail:false,detailSize:0.12,undo:[],redo:[],cache:new Map(),stroke:null,cursor:null};
 try{const sz=+sessionStorage.getItem('bf-sc-size'),st=+sessionStorage.getItem('bf-sc-str'),mr=sessionStorage.getItem('bf-sc-mirror');if(sz>=10&&sz<=220)SC.size=sz;if(st>=0.02&&st<=1)SC.strength=st;if(mr==='0'||mr==='1')SC.mirror=mr==='1'}catch(e){}
 function sculptDetail(){const cores=navigator.hardwareConcurrency||4,sw=Math.min(screen.width||innerWidth||1200,screen.height||innerHeight||800);return (sw<900||cores<=4)?4:5}
+function sculptVertCap(){const cores=navigator.hardwareConcurrency||4,sw=Math.min(screen.width||innerWidth||1200,screen.height||innerHeight||800);return (sw<900||cores<=4)?14000:28000}
 function sculptClearHist(){SC.undo.length=0;SC.redo.length=0;SC.stroke=null}
 function symX(m){let x=0;const v=m.verts;for(let i=0;i<v.length;i++)x+=v[i][0];return x/(v.length||1)}
 function mirrorP(p,cx){return [cx+cx-p[0],p[1],p[2]]}
 function mirrorN(n){return [-n[0],n[1],n[2]]}
-function scFalloff(d,r){if(!(r>0)||d>=r)return 0;const t=1-d/r;return t*t*(3-2*t)}
+/* SculptGL's brush curve: 1 at the center, 0 at the rim, flat derivative at both ends so overlaps blend. */
+function scFalloff(d,r){if(!(r>0)||d>=r)return 0;const t=d/r,t2=t*t;return t2*(t2*3-t*4)+1}
 function cellKey(ix,iy,iz){return ((ix*73856093)^(iy*19349663)^(iz*83492791))>>>0}
-function pressureOf(e){const p=+e.pressure;if(e.pointerType==='pen')return Math.max(0.04,(p>0&&p<=1)?p:0.5);if(e.pointerType==='touch'&&p>0&&p<0.99)return p;return 1}
+/* Pen and force-touch report a real 0–1 pressure. A mouse or a plain finger does not, so a fast stroke
+   gets lighter and a slow one digs in — otherwise every dab would be the same strength. */
+function samplePressure(e,worldStep,dt,R){const p=+e.pressure;
+ if(e.pointerType==='pen'&&p>0&&p<=1)return {k:Math.max(0.02,p),real:true};
+ if((e.pointerType==='touch'||e.pointerType==='pen')&&p>0.03&&p<0.97)return {k:p,real:true};
+ const speed=Math.max(0,worldStep)/Math.max(0.008,dt||0.016),ref=Math.max(0.2,R)*5.5;
+ return {k:Math.max(0.25,Math.min(1,1.2-speed/ref)),real:false}}
+function pressureOf(e){return samplePressure(e,0,0.05,0.4).k}
 function capturePos(m){const a=new Float32Array(m.verts.length*3);for(let i=0;i<m.verts.length;i++){const v=m.verts[i];a[i*3]=v[0];a[i*3+1]=v[1];a[i*3+2]=v[2]}return a}
 function applyPos(m,a){for(let i=0;i<m.verts.length;i++){const v=m.verts[i];v[0]=a[i*3];v[1]=a[i*3+1];v[2]=a[i*3+2]}}
 function meshNormals(m){const n=m.verts.length,N=new Float32Array(n*3),v=m.verts;
@@ -839,11 +903,16 @@ function splitVerts(m,center,R,cx,hash){const h=hash||buildHash(m.verts,R),best=
     const prev=best.get(i);if(!prev)best.set(i,{d,side});else if(d<prev.d-1e-5)best.set(i,{d,side});else if(Math.abs(d-prev.d)<=Math.max(1e-4,R*1e-3))prev.side=2}}}
  take(center,0);if(SC.mirror)take(mirrorP(center,cx),1);
  const out=[];for(const [i,rec] of best){const f=scFalloff(rec.d,R);if(f>0)out.push({i,f,side:rec.side})}return out}
-function brushCtx(m,cache,N,R,pressure,invert){const s=SC.strength*pressure,sign=invert?-1:1,reach=R*s*0.85;
- return {m,cache,N,amp:reach*0.55*sign,plane:reach*0.7*sign,pinch:0.5*s,dig:reach*0.4*(invert?1:-1),flat:Math.min(1,0.5+s*0.65),clay:0.82,smooth:Math.min(0.8,0.4+s*0.55),
-  cap:(SC.brush==='draw'||SC.brush==='inflate'||SC.brush==='crease'||SC.brush==='pinch')?reach:0,acc:SC.stroke?SC.stroke.acc:null}}
-function dispDraw(i,v,f,center,normal,ctx){const o=i*3,a=ctx.amp*f,N=ctx.N;return [N[o]*a,N[o+1]*a,N[o+2]*a]}
-function dispInflate(i,v,f,center,normal,ctx){const o=i*3,a=ctx.amp*Math.pow(Math.max(0,f),0.4),N=ctx.N;return [N[o]*a,N[o+1]*a,N[o+2]*a]}
+function brushCtx(m,cache,N,R,pressure,invert,area){const s=SC.strength*pressure,sign=invert?-1:1;
+ const amp=R*s*0.13*sign;
+ return {m,cache,N,area:area||[0,0,1],amp,plane:R*s*0.2*sign,pinch:0.28*s,dig:R*s*0.09*(invert?1:-1),flat:Math.min(1,0.4+s*0.55),clay:0.55,smooth:Math.min(0.72,0.32+s*0.5),
+  layerH:R*s*0.45*sign,base:SC.stroke&&SC.brush==='layer'?SC.stroke.base:null}}
+function mixNormal(i,ctx){const o=i*3,N=ctx.N,A=ctx.area;let x=N[o]*0.62+A[0]*0.38,y=N[o+1]*0.62+A[1]*0.38,z=N[o+2]*0.62+A[2]*0.38;const l=Math.hypot(x,y,z)||1;return [x/l,y/l,z/l]}
+function dispDraw(i,v,f,center,normal,ctx){const a=ctx.amp*f,n=mixNormal(i,ctx);return [n[0]*a,n[1]*a,n[2]*a]}
+function dispInflate(i,v,f,center,normal,ctx){const o=i*3,a=ctx.amp*Math.pow(Math.max(0,f),0.45),N=ctx.N;return [N[o]*a,N[o+1]*a,N[o+2]*a]}
+function dispLayer(i,v,f,center,normal,ctx){const base=ctx.base;if(!base||i*3+2>=base.length)return dispDraw(i,v,f,center,normal,ctx);
+ const o=i*3,n=mixNormal(i,ctx),h=ctx.layerH*f,tx=base[o]+n[0]*h,ty=base[o+1]+n[1]*h,tz=base[o+2]+n[2]*h;
+ return [(tx-v[0])*0.72,(ty-v[1])*0.72,(tz-v[2])*0.72]}
 function dispSmooth(i,v,f,center,normal,ctx){const nb=ctx.cache.neigh[i];if(!nb||!nb.length)return [0,0,0];
  let ax=0,ay=0,az=0;const verts=ctx.m.verts;for(let k=0;k<nb.length;k++){const p=verts[nb[k]];ax+=p[0];ay+=p[1];az+=p[2]}
  const inv=1/nb.length,t=ctx.smooth*f;return [(ax*inv-v[0])*t,(ay*inv-v[1])*t,(az*inv-v[2])*t]}
@@ -853,7 +922,7 @@ function dispClay(i,v,f,center,normal,ctx){const d=(v[0]-center[0])*normal[0]+(v
 function dispCrease(i,v,f,center,normal,ctx){const t=ctx.pinch*f,o=i*3,a=ctx.dig*f,N=ctx.N;return [(center[0]-v[0])*t+N[o]*a,(center[1]-v[1])*t+N[o+1]*a,(center[2]-v[2])*t+N[o+2]*a]}
 function dispFlat(i,v,f,center,normal,ctx){const d=(v[0]-center[0])*normal[0]+(v[1]-center[1])*normal[1]+(v[2]-center[2])*normal[2],a=d*ctx.flat*f;return [-normal[0]*a,-normal[1]*a,-normal[2]*a]}
 function dispPinch(i,v,f,center,normal,ctx){const t=ctx.pinch*f;return [(center[0]-v[0])*t,(center[1]-v[1])*t,(center[2]-v[2])*t]}
-const SC_DISP={draw:dispDraw,smooth:dispSmooth,clay:dispClay,crease:dispCrease,inflate:dispInflate,flatten:dispFlat,pinch:dispPinch};
+const SC_DISP={draw:dispDraw,layer:dispLayer,smooth:dispSmooth,clay:dispClay,crease:dispCrease,inflate:dispInflate,flatten:dispFlat,pinch:dispPinch};
 function limitDelta(i,d,ctx){let mag=Math.hypot(d[0],d[1],d[2]);if(!(ctx.cap>0)||!ctx.acc||!(mag>0))return d;
  const used=ctx.acc[i]||0,allow=ctx.cap-used;if(allow<=1e-8)return [0,0,0];
  if(mag>allow){const s=allow/mag;d=[d[0]*s,d[1]*s,d[2]*s];mag=allow}ctx.acc[i]=used+mag;return d}
@@ -865,10 +934,26 @@ function applyBrush(m,center,normal,R,cx,disp,ctx,hash){const parts=splitVerts(m
   d=limitDelta(p.i,d,ctx);const mag=Math.hypot(d[0],d[1],d[2]);if(mag>moved)moved=mag;if(mag>0)acc.push(p.i,d)}
  for(let k=0;k<acc.length;k+=2){const v=m.verts[acc[k]],d=acc[k+1];v[0]+=d[0];v[1]+=d[1];v[2]+=d[2]}
  return moved}
+function splitOneEdge(m,a,b){const faces=[];let hit=0;const mi=m.verts.length;
+ for(const f of m.faces){if(!f||f.length!==3){if(f)faces.push(f);continue}const ia=f.indexOf(a),ib=f.indexOf(b);
+  if(ia<0||ib<0){faces.push(f);continue}hit++;
+  const ordered=[];for(let i=0;i<3;i++){const u=f[i],w=f[(i+1)%3];ordered.push(u);if((u===a&&w===b)||(u===b&&w===a))ordered.push(mi)}
+  if(ordered.length!==4){faces.push(f);continue}faces.push([ordered[0],ordered[1],ordered[3]],[ordered[1],ordered[2],ordered[3]])}
+ if(!hit)return false;const A=m.verts[a],B=m.verts[b];m.verts.push([(A[0]+B[0])*0.5,(A[1]+B[1])*0.5,(A[2]+B[2])*0.5]);m.faces=faces;return true}
+/* Sculptris-style local detail: split edges under the brush that are longer than the detail size.
+   A hard vertex cap keeps a phone from refining forever. */
+function sculptRefine(m,center,R,detail){const cap=sculptVertCap();if(m.verts.length>=cap||!(detail>0))return false;const cands=[],seen=new Set();
+ for(const f of m.faces){if(!f||f.length!==3)continue;for(let i=0;i<3;i++){const a=f[i],b=f[(i+1)%3],k=a<b?a+'_'+b:b+'_'+a;if(seen.has(k))continue;seen.add(k);
+  const A=m.verts[a],B=m.verts[b];if(!A||!B)continue;const mx=(A[0]+B[0])*0.5,my=(A[1]+B[1])*0.5,mz=(A[2]+B[2])*0.5;
+  if((mx-center[0])**2+(my-center[1])**2+(mz-center[2])**2>R*R)continue;const len=Math.hypot(A[0]-B[0],A[1]-B[1],A[2]-B[2]);if(len>detail)cands.push({a,b,len})}}
+ if(!cands.length)return false;cands.sort((p,q)=>q.len-p.len);const budget=Math.min(20,cap-m.verts.length,cands.length);let n=0;
+ for(let i=0;i<cands.length&&n<budget;i++)if(splitOneEdge(m,cands[i].a,cands[i].b))n++;return n>0}
 function sculptDab(m,cache,center,normal,R,pressure,invert,cx){const disp=SC_DISP[SC.brush];if(!disp)return 0;
+ if(SC.detail&&SC.brush!=='grab'&&SC.brush!=='smooth'&&SC.brush!=='layer'){let topo=sculptRefine(m,center,R,SC.detailSize);if(SC.mirror)topo=sculptRefine(m,mirrorP(center,cx),R,SC.detailSize)||topo;
+  if(topo){const o=S.objs.find(x=>x&&x.mesh===m);if(o)SC.cache.delete(o.id);cache=o?sculptCache(o):cache;if(SC.stroke)SC.stroke.topo=true}}
  const nl=Math.hypot(normal[0],normal[1],normal[2])||1,n=[normal[0]/nl,normal[1]/nl,normal[2]/nl];
- const N=meshNormals(m),ctx=brushCtx(m,cache,N,R,pressure,invert);
- if(SC.brush==='smooth'){const hash=buildHash(m.verts,R);let moved=0;for(let i=0;i<4;i++)moved=Math.max(moved,applyBrush(m,center,n,R,cx,disp,ctx,hash));return moved}
+ const N=meshNormals(m),ctx=brushCtx(m,cache,N,R,pressure,invert,n);
+ if(SC.brush==='smooth'){const hash=buildHash(m.verts,R);let moved=0;for(let i=0;i<4;i++){ctx.N=meshNormals(m);moved=Math.max(moved,applyBrush(m,center,n,R,cx,disp,ctx,hash))}return moved}
  return applyBrush(m,center,n,R,cx,disp,ctx,null)}
 function screenDelta(dist,x0,y0,x,y){const wpp=2*Math.max(dist,0.05)*Math.tan(cam.fov*Math.PI/360)/Math.max(1,innerHeight),dx=(x-x0)*wpp,dy=-(y-y0)*wpp;
  const r=new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld,0),u=new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld,1);
@@ -881,7 +966,7 @@ function grabApply(m,st,x,y,pr){const delta=screenDelta(st.dist,st.x0,st.y0,x,y)
  return moved}
 function brushRadius(dist){const wpp=2*Math.max(dist,0.05)*Math.tan(cam.fov*Math.PI/360)/Math.max(1,innerHeight);return Math.max(0.012,SC.size*wpp)}
 function sculptHit(x,y){const h=hitObj(x,y);if(!h||!h.face||!h.face.normal)return null;const oi=h.object.userData.oi,o=S.objs[oi];
- if(!o||o.kind!=='sculpt'||!layerVisible(o))return null;const n=h.face.normal;return {oi,point:[h.point.x,h.point.y,h.point.z],normal:[n.x,n.y,n.z],dist:h.distance}}
+ if(!o||!o.mesh||!o.mesh.faces||!o.mesh.faces.length||!layerVisible(o))return null;const n=h.face.normal;return {oi,point:[h.point.x,h.point.y,h.point.z],normal:[n.x,n.y,n.z],dist:h.distance}}
 function sculptSync(oi){const rec=LIVE&&LIVE[oi],m=S.objs[oi]&&S.objs[oi].mesh;if(!rec||!rec.sculpt||!m){rebuild();return}
  const pa=rec.mesh.geometry.attributes.position;if(pa.count!==m.verts.length){rebuild();return}
  const a=pa.array;for(let i=0;i<m.verts.length;i++){const v=m.verts[i];a[i*3]=v[0];a[i*3+1]=v[1];a[i*3+2]=v[2]}
@@ -889,43 +974,45 @@ function sculptSync(oi){const rec=LIVE&&LIVE[oi],m=S.objs[oi]&&S.objs[oi].mesh;i
  const mat=(S.mode==='sculpt'&&oi===S.active)?MAT.sculptSel:MAT.sculpt;if(rec.mesh.material!==mat)rec.mesh.material=mat;draw()}
 function sculptFocus(oi){S.active=oi;S.osel=new Set([oi]);if(!LIVE)return;
  for(let i=0;i<LIVE.length;i++){const rec=LIVE[i];if(rec&&rec.sculpt)rec.mesh.material=i===oi?MAT.sculptSel:MAT.sculpt}}
-function sculptPushUndo(o){SC.undo.push({id:o.id,pos:capturePos(o.mesh)});if(SC.undo.length>30)SC.undo.shift();SC.redo.length=0}
-function sculptBegin(e){const h=sculptHit(e.clientX,e.clientY);SC.cursor={x:e.clientX,y:e.clientY,hit:h};if(!h)return false;
- const o=S.objs[h.oi];if(!o||o.kind!=='sculpt')return false;
- if(layerLocked(o)){toast('Layer is locked');return true}
+function meshSnap(o){return {id:o.id,pos:capturePos(o.mesh),faces:o.mesh.faces.map(f=>f.slice())}}
+function applySnap(o,rec){const n=rec.pos.length/3;if(rec.faces)o.mesh.faces=rec.faces.map(f=>f.slice());while(o.mesh.verts.length<n)o.mesh.verts.push([0,0,0]);o.mesh.verts.length=n;applyPos(o.mesh,rec.pos);SC.cache.delete(o.id)}
+function sculptPushUndo(o){SC.undo.push(meshSnap(o));if(SC.undo.length>30)SC.undo.shift();SC.redo.length=0}
+function sculptBegin(e){let h=sculptHit(e.clientX,e.clientY);SC.cursor={x:e.clientX,y:e.clientY,hit:h};if(!h)return false;
+ let o=S.objs[h.oi];if(!o)return false;if(layerLocked(o)){toast('Layer is locked');return true}
+ if(o.kind!=='sculpt'){if(!prepareForSculpt(h.oi,false))return true;h=sculptHit(e.clientX,e.clientY)||h;o=S.objs[h.oi];if(!o)return true}
  sculptFocus(h.oi);sculptPushUndo(o);
- const cx=symX(o.mesh),invert=!!(SC.invert||e.altKey||e.button===2||e.button===5),R=brushRadius(h.dist),pr=pressureOf(e);
- SC.stroke={oi:h.oi,cx,invert,changed:false,last:h.point.slice(),lastN:h.normal.slice(),x0:e.clientX,y0:e.clientY,dist:h.dist,grab:null,acc:new Float32Array(o.mesh.verts.length)};
+ const cx=symX(o.mesh),invert=!!(SC.invert||e.altKey||e.button===2||e.button===5);
+ const info=samplePressure(e,0,0.05,brushRadius(h.dist)),pr=info.k,R=brushRadius(h.dist)*(info.real?0.55+0.45*pr:1);
+ SC.stroke={oi:h.oi,cx,invert,changed:false,last:h.point.slice(),lastN:h.normal.slice(),x0:e.clientX,y0:e.clientY,dist:h.dist,grab:null,base:SC.brush==='layer'?capturePos(o.mesh):null,lastT:performance.now()};
  if(SC.brush==='grab'){SC.stroke.grab=grabBegin(o.mesh,h.point,R,cx);ui();draw();return true}
  const moved=sculptDab(o.mesh,sculptCache(o),h.point,h.normal,R,pr,invert,cx);
- if(moved>1e-7)SC.stroke.changed=true;ui();sculptSync(h.oi);return true}
+ if(moved>1e-7||SC.stroke.topo)SC.stroke.changed=true;ui();sculptSync(h.oi);return true}
 function sculptMove(e){const st=SC.stroke;if(!st)return;const o=S.objs[st.oi];if(!o)return;
  SC.cursor={x:e.clientX,y:e.clientY,hit:null};
- if(SC.brush==='grab'){const moved=grabApply(o.mesh,st,e.clientX,e.clientY,pressureOf(e));if(moved>1e-7)st.changed=true;sculptSync(st.oi);return}
+ const now=performance.now(),dt=(now-(st.lastT||now))/1000;st.lastT=now;
+ if(SC.brush==='grab'){const info=samplePressure(e,0,dt,brushRadius(st.dist)),pr=info.real?info.k:1;const moved=grabApply(o.mesh,st,e.clientX,e.clientY,pr);if(moved>1e-7)st.changed=true;sculptSync(st.oi);return}
  const h=sculptHit(e.clientX,e.clientY);SC.cursor.hit=h;if(!h||h.oi!==st.oi){draw();return}
- const R=brushRadius(h.dist),step=Math.max(R*0.2,1e-4),a=st.last,b=h.point,dist=Math.hypot(b[0]-a[0],b[1]-a[1],b[2]-a[2]);
+ const dist=Math.hypot(h.point[0]-st.last[0],h.point[1]-st.last[1],h.point[2]-st.last[2]);
+ const info=samplePressure(e,dist,dt,brushRadius(h.dist)),pr=info.k,R=brushRadius(h.dist)*(info.real?0.55+0.45*pr:0.8+0.2*pr);
+ const step=Math.max(R*0.15,1e-4),a=st.last,b=h.point;
  let n=Math.floor(dist/step);if(n<1){if(dist<step*0.35){draw();return}n=1}n=Math.min(n,8);
- const cache=sculptCache(o),pr=pressureOf(e);
+ let cache=sculptCache(o);
  for(let i=1;i<=n;i++){const t=i/n,p=[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t];
   let nx=st.lastN[0]+(h.normal[0]-st.lastN[0])*t,ny=st.lastN[1]+(h.normal[1]-st.lastN[1])*t,nz=st.lastN[2]+(h.normal[2]-st.lastN[2])*t;
-  const moved=sculptDab(o.mesh,cache,p,[nx,ny,nz],R,pr,st.invert,st.cx);if(moved>1e-7)st.changed=true}
+  const moved=sculptDab(o.mesh,cache,p,[nx,ny,nz],R,pr,st.invert,st.cx);if(moved>1e-7||st.topo)st.changed=true;if(st.topo)cache=sculptCache(o)}
  st.last=b.slice();st.lastN=h.normal.slice();sculptSync(st.oi)}
 function sculptEnd(){const st=SC.stroke;SC.stroke=null;if(G&&G.type==='sculpt')G=null;document.body.classList.remove('nav');if(!st)return;
  if(!st.changed){SC.undo.pop();ui();draw();return}
  ui();if(bootReady&&!S.adjust)tlRecord();if(bootReady)persistOpen(false);draw()}
 function sculptUndo(){if(SC.stroke)sculptEnd();
- while(SC.undo.length){const rec=SC.undo.pop(),oi=S.objs.findIndex(o=>o&&o.id===rec.id),o=S.objs[oi];
-  if(!o||o.mesh.verts.length*3!==rec.pos.length)continue;
-  SC.redo.push({id:o.id,pos:capturePos(o.mesh)});if(SC.redo.length>30)SC.redo.shift();
-  applyPos(o.mesh,rec.pos);S.active=oi;S.osel=new Set([oi]);if(S.mode!=='sculpt')S.mode='sculpt';changed();return true}
+ while(SC.undo.length){const rec=SC.undo.pop(),oi=S.objs.findIndex(o=>o&&o.id===rec.id),o=S.objs[oi];if(!o||!rec.pos)continue;
+  SC.redo.push(meshSnap(o));if(SC.redo.length>30)SC.redo.shift();applySnap(o,rec);S.active=oi;S.osel=new Set([oi]);if(S.mode!=='sculpt')S.mode='sculpt';changed();return true}
  return false}
 function sculptRedo(){if(SC.stroke)sculptEnd();
- while(SC.redo.length){const rec=SC.redo.pop(),oi=S.objs.findIndex(o=>o&&o.id===rec.id),o=S.objs[oi];
-  if(!o||o.mesh.verts.length*3!==rec.pos.length)continue;
-  SC.undo.push({id:o.id,pos:capturePos(o.mesh)});if(SC.undo.length>30)SC.undo.shift();
-  applyPos(o.mesh,rec.pos);S.active=oi;S.osel=new Set([oi]);changed();return true}
+ while(SC.redo.length){const rec=SC.redo.pop(),oi=S.objs.findIndex(o=>o&&o.id===rec.id),o=S.objs[oi];if(!o||!rec.pos)continue;
+  SC.undo.push(meshSnap(o));if(SC.undo.length>30)SC.undo.shift();applySnap(o,rec);S.active=oi;S.osel=new Set([oi]);changed();return true}
  return false}
-function sculptDabWorld(point,normal,radius,pressure){const o=act();if(!o||o.kind!=='sculpt')return 0;
+function sculptDabWorld(point,normal,radius,pressure){let o=act();if(!o)return 0;if(o.kind!=='sculpt'&&!prepareForSculpt(S.active,true))return 0;o=act();
  const n=vnorm(normal&&normal.length===3?normal:[0,0,1]);
  const moved=sculptDab(o.mesh,sculptCache(o),point,n,radius>0?radius:0.35,pressure==null?1:pressure,SC.invert,symX(o.mesh));
  sculptSync(S.active);return moved}
@@ -937,17 +1024,19 @@ function drawBrush(x){if(S.mode!=='sculpt'||!SC.cursor)return;const cx=SC.cursor
   if(s.z<1){x.setLineDash([5,4]);x.beginPath();x.arc(s.x,s.y,SC.size,0,Math.PI*2);x.stroke()}}
  x.restore()}
 function ensureSculptPanel(){if($('sculptPanel'))return;const el=document.createElement('section');el.id='sculptPanel';el.className='glass';el.hidden=true;
- el.innerHTML='<h3>SCULPT <span id="scName"></span></h3><label class="row"><span>Size</span><input id="scSize" type="range" min="10" max="220" step="1"><b id="scSizeB">72</b></label><label class="row"><span>Strength</span><input id="scStr" type="range" min="2" max="100" step="1"><b id="scStrB">0.50</b></label><div class="row"><button type="button" id="scMirror">Mirror X</button><button type="button" id="scInvert">Invert</button></div>';
+ el.innerHTML='<h3>SCULPT <span id="scName"></span></h3><label class="row"><span>Size</span><input id="scSize" type="range" min="10" max="220" step="1"><b id="scSizeB">72</b></label><label class="row"><span>Strength</span><input id="scStr" type="range" min="2" max="100" step="1"><b id="scStrB">0.50</b></label><label class="row" id="scDetRow"><span>Detail</span><input id="scDet" type="range" min="3" max="40" step="1"><b id="scDetB">0.12</b></label><div class="row"><button type="button" id="scMirror">Mirror X</button><button type="button" id="scInvert">Invert</button><button type="button" id="scDetail">Detail</button></div>';
  document.body.append(el);
  $('scSize').oninput=e=>setSculptSize(+e.target.value);$('scStr').oninput=e=>setSculptStrength(+e.target.value/100);
- $('scMirror').onclick=()=>setSculptMirror(!SC.mirror);$('scInvert').onclick=()=>setSculptInvert(!SC.invert)}
+ $('scDet').oninput=e=>setDetailSize(+e.target.value/100);
+ $('scMirror').onclick=()=>setSculptMirror(!SC.mirror);$('scInvert').onclick=()=>setSculptInvert(!SC.invert);$('scDetail').onclick=()=>setSculptDetail(!SC.detail)}
 function syncSculptPanel(){ensureSculptPanel();const el=$('sculptPanel'),on=S.mode==='sculpt';el.hidden=!on;const status=$('status');
  if(status)status.style.bottom=on?'':'';
  if(!on)return;
  const sl=$('scSize');if(sl&&document.activeElement!==sl)sl.value=SC.size;const sb=$('scSizeB');if(sb)sb.textContent=Math.round(SC.size);
  const st=$('scStr');if(st&&document.activeElement!==st)st.value=Math.round(SC.strength*100);const stb=$('scStrB');if(stb)stb.textContent=SC.strength.toFixed(2);
- const mb=$('scMirror');if(mb)mb.classList.toggle('on',SC.mirror);const ib=$('scInvert');if(ib)ib.classList.toggle('on',SC.invert);
- const o=S.objs[S.active];const nm=$('scName');if(nm)nm.textContent=o&&o.kind==='sculpt'?o.name:'add clay';
+ const mb=$('scMirror');if(mb)mb.classList.toggle('on',SC.mirror);const ib=$('scInvert');if(ib)ib.classList.toggle('on',SC.invert);const db=$('scDetail');if(db)db.classList.toggle('on',SC.detail);
+ const dl=$('scDet');if(dl&&document.activeElement!==dl)dl.value=Math.round(SC.detailSize*100);const dlb=$('scDetB');if(dlb)dlb.textContent=SC.detailSize.toFixed(2);
+ const o=S.objs[S.active];const nm=$('scName');if(nm)nm.textContent=o?o.name:'nothing';
  if(status)requestAnimationFrame(()=>{if(S.mode==='sculpt')status.style.bottom='calc('+(100+el.offsetHeight)+'px + var(--safe))'})}
 function setSculptSize(v){SC.size=Math.max(10,Math.min(220,+v||10));try{sessionStorage.setItem('bf-sc-size',String(Math.round(SC.size)))}catch(e){}
  const sl=$('scSize');if(sl&&document.activeElement!==sl)sl.value=SC.size;const b=$('scSizeB');if(b)b.textContent=Math.round(SC.size);draw()}
@@ -957,24 +1046,60 @@ function setSculptMirror(on){SC.mirror=!!on;try{sessionStorage.setItem('bf-sc-mi
  const b=$('scMirror');if(b)b.classList.toggle('on',SC.mirror);toast(SC.mirror?'Mirror X on':'Mirror X off');draw()}
 function setSculptInvert(on){SC.invert=!!on;const b=$('scInvert');if(b)b.classList.toggle('on',SC.invert);toast(SC.invert?'Invert on · push in':'Invert off · raise')}
 function setSculptBrush(id){if(!SC_BRUSHES.some(b=>b.id===id))return;SC.brush=id;S.tool=id;ui();draw()}
+function setDetailSize(v){SC.detailSize=Math.max(0.03,Math.min(0.4,+v||0.12));const b=$('scDetB');if(b)b.textContent=SC.detailSize.toFixed(2);const sl=$('scDet');if(sl&&document.activeElement!==sl)sl.value=Math.round(SC.detailSize*100)}
+function setSculptDetail(on){SC.detail=!!on;const b=$('scDetail');if(b)b.classList.toggle('on',SC.detail);toast(SC.detail?'Local detail on · brush adds triangles where the mesh is coarse':'Local detail off');draw()}
 function enterSculpt(quiet){closeAdjust();const was=S.mode==='sculpt';S.mode='sculpt';if(!SC_BRUSHES.some(b=>b.id===SC.brush))SC.brush='draw';S.tool=SC.brush;
- const o=S.objs[S.active];if(!(o&&o.kind==='sculpt')){const idx=S.objs.findIndex((x,i)=>x&&x.kind==='sculpt'&&S.osel.has(i)&&layerVisible(x)&&!layerLocked(x));if(idx>=0)S.active=idx}
+ const o=S.objs[S.active];if(!(o&&layerVisible(o)&&!layerLocked(o))){const idx=S.objs.findIndex(x=>x&&layerVisible(x)&&!layerLocked(x));if(idx>=0)S.active=idx}
  if(!was)changed();else{ui();draw()}
- if(!quiet){const cur=S.objs[S.active];toast(cur&&cur.kind==='sculpt'?'Sculpt · drag the clay. Empty space orbits.':'Sculpt · Ball adds clay, Convert uses the selection')}}
+ if(!quiet)toast('Sculpt · drag any object. Empty space orbits. Subdiv smooths the whole mesh.')}
 function addClayBall(){const host=activeLayer();if(host.locked){toast('Layer is locked');return null}
  push();if(host.visible===false)host.visible=true;const mesh=M.icoSphere(sculptDetail(),1),c=[orbit.t.x,orbit.t.y,Math.max(0,orbit.t.z)+1];
  for(const v of mesh.verts){v[0]+=c[0];v[1]+=c[1];v[2]+=c[2]}
  const name='Clay '+(S.objs.filter(o=>o&&o.name&&o.name.startsWith('Clay')).length+1),o=newObj(name,mesh,host.id);o.kind='sculpt';
  S.objs.push(o);S.active=S.objs.length-1;S.osel=new Set([S.active]);S.mode='sculpt';if(!SC_BRUSHES.some(b=>b.id===SC.brush))SC.brush='draw';S.tool=SC.brush;
  closeSheet();changed();frame();toast(name+' · '+mesh.verts.length+' verts · drag to shape');return o}
+function prepareForSculpt(idx,quiet){const o=S.objs[idx];if(!o||!o.mesh||!o.mesh.faces||!o.mesh.faces.length){if(!quiet)toast('Nothing to sculpt');return false}
+ if(layerLocked(o)||!layerVisible(o)){if(!quiet)toast(layerLocked(o)?'Layer is locked':'Layer is hidden');return false}
+ const target=sculptVertCap()>20000?2200:1400;
+ if(o.kind==='sculpt')return true;
+ push();if(o.mesh.verts.length<target)o.mesh=M.densify(o.mesh,target);o.kind='sculpt';SC.cache.delete(o.id);
+ S.active=idx;S.osel=new Set([idx]);S.mode='sculpt';if(!SC_BRUSHES.some(b=>b.id===SC.brush))SC.brush='draw';S.tool=SC.brush;changed();
+ if(!quiet)toast(o.name+' · '+o.mesh.verts.length+' verts · drag to sculpt');return true}
 function convertToSculpt(){let idx=S.active;
  if(S.mode==='object'&&S.osel.size){const ids=[...S.osel].filter(i=>S.objs[i]&&layerVisible(S.objs[i])&&!layerLocked(S.objs[i]));if(ids.length)idx=ids.includes(S.active)?S.active:ids[0]}
- const o=S.objs[idx];if(!o||!o.mesh){toast('Select an object to convert');return false}
+ const before=S.objs[idx]&&S.objs[idx].mesh?S.objs[idx].mesh.verts.length:0;const ok=prepareForSculpt(idx,true);if(!ok)return false;
+ frame();const o=S.objs[idx];toast((before===o.mesh.verts.length?'Sculpting ':'Prepared ')+o.name+' · '+o.mesh.verts.length+' verts');return true}
+function relaxSmooth(mesh,iters,t){const n=mesh.verts.length,neigh=Array.from({length:n},()=>[]);
+ const add=(a,b)=>{if(a!==b&&neigh[a]&&neigh[a].indexOf(b)<0)neigh[a].push(b)};
+ for(const f of mesh.faces){if(!f)continue;for(let i=0;i<f.length;i++)add(f[i],f[(i+1)%f.length])}
+ for(let it=0;it<iters;it++){const next=new Array(n);
+  for(let i=0;i<n;i++){const nb=neigh[i],v=mesh.verts[i];if(!nb||!nb.length){next[i]=v.slice();continue}let ax=0,ay=0,az=0;for(const j of nb){ax+=mesh.verts[j][0];ay+=mesh.verts[j][1];az+=mesh.verts[j][2]}
+   const inv=1/nb.length;next[i]=[v[0]*(1-t)+ax*inv*t,v[1]*(1-t)+ay*inv*t,v[2]*(1-t)+az*inv*t]}
+  for(let i=0;i<n;i++)mesh.verts[i]=next[i]}}
+function meshDiag(mesh){let mn=[1e9,1e9,1e9],mx=[-1e9,-1e9,-1e9];for(const v of mesh.verts)for(let k=0;k<3;k++){mn[k]=Math.min(mn[k],v[k]);mx[k]=Math.max(mx[k],v[k])}return Math.max(1e-6,Math.hypot(mx[0]-mn[0],mx[1]-mn[1],mx[2]-mn[2]))}
+function smoothSubdivide(){const o=act();if(!o||!o.mesh||!o.mesh.faces||!o.mesh.faces.length){toast('Nothing to subdivide');return false}
  if(layerLocked(o)||!layerVisible(o)){toast(layerLocked(o)?'Layer is locked':'Layer is hidden');return false}
- if(o.kind==='sculpt'&&o.mesh.verts.length>=800){S.active=idx;S.osel=new Set([idx]);S.mode='sculpt';S.tool=SC.brush;changed();toast('Already sculptable · drag to shape');return true}
- if(!o.mesh.faces||!o.mesh.faces.length){toast('That object has no faces');return false}
- push();o.mesh=M.densify(o.mesh,sculptDetail()>=5?6000:2400);o.kind='sculpt';SC.cache.delete(o.id);clearSel();
- S.active=idx;S.osel=new Set([idx]);S.mode='sculpt';S.tool=SC.brush;changed();frame();toast('Converted '+o.name+' · '+o.mesh.verts.length+' verts');return true}
+ if(S.mode==='sculpt')sculptPushUndo(o);else push();
+ const diag=meshDiag(o.mesh);
+ relaxSmooth(o.mesh,12,0.5);
+ const est=o.mesh.verts.length+Math.round(o.mesh.faces.length*1.5);
+ if(est<=sculptVertCap())o.mesh=M.loopSubdiv(o.mesh);
+ const now=meshDiag(o.mesh),s=diag/now;if(Math.abs(s-1)>0.02){let c=[0,0,0];for(const v of o.mesh.verts){c[0]+=v[0];c[1]+=v[1];c[2]+=v[2]}c=c.map(x=>x/o.mesh.verts.length);for(const v of o.mesh.verts){v[0]=c[0]+(v[0]-c[0])*s;v[1]=c[1]+(v[1]-c[1])*s;v[2]=c[2]+(v[2]-c[2])*s}}
+ o.kind='sculpt';SC.cache.delete(o.id);S.mode='sculpt';if(!SC_BRUSHES.some(b=>b.id===SC.brush))SC.brush='draw';S.tool=SC.brush;changed();
+ toast('Smoothed · '+o.mesh.verts.length+' verts');return true}
+function fitImported(mesh){let mn=[1e9,1e9,1e9],mx=[-1e9,-1e9,-1e9];for(const v of mesh.verts)for(let k=0;k<3;k++){if(!isFinite(v[k]))return null;mn[k]=Math.min(mn[k],v[k]);mx[k]=Math.max(mx[k],v[k])}
+ const size=Math.max(mx[0]-mn[0],mx[1]-mn[1],mx[2]-mn[2])||1,s=2/size,c=[(mn[0]+mx[0])/2,(mn[1]+mx[1])/2,(mn[2]+mx[2])/2];
+ return {verts:mesh.verts.map(v=>[(v[0]-c[0])*s+orbit.t.x,(v[1]-c[1])*s+orbit.t.y,(v[2]-c[2])*s+Math.max(0,orbit.t.z)+1]),faces:mesh.faces,wires:[]}}
+function addImportedMesh(mesh,name){if(!mesh||!mesh.verts||!mesh.verts.length||!mesh.faces||!mesh.faces.length){toast('Could not read that file');return null}
+ const host=activeLayer();if(host.locked){toast('Layer is locked');return null}const placed=fitImported(mesh);if(!placed){toast('That file has bad coordinates');return null}
+ push();if(host.visible===false)host.visible=true;const o=newObj((name||'Import').slice(0,32),placed,host.id);if(placed.verts.length>500)o.kind='sculpt';
+ S.objs.push(o);S.active=S.objs.length-1;S.osel=new Set([S.active]);closeSheet();changed();frame();
+ toast(o.name+' · '+placed.verts.length+' verts · switch to Sculpt and drag');return o}
+function pickImport(){let inp=$('meshIn');if(!inp){inp=document.createElement('input');inp.id='meshIn';inp.type='file';inp.accept='.obj,.stl,.glb,.gltf,model/obj,model/stl';inp.hidden=true;document.body.append(inp);
+  inp.onchange=()=>{const f=inp.files&&inp.files[0];inp.value='';if(f)importMeshFile(f)}}inp.click()}
+function importMeshFile(file){const name=(file.name||'Import').replace(/\.[^.]+$/,''),ext=(file.name.split('.').pop()||'').toLowerCase(),reader=new FileReader();
+ reader.onload=()=>{try{let mesh=null;if(ext==='obj')mesh=M.fromOBJ(String(reader.result));else if(ext==='stl')mesh=M.fromSTL(reader.result);else if(ext==='glb'||ext==='gltf')mesh=M.fromGLB(reader.result);else{toast('Use an OBJ, STL, or GLB file');return}addImportedMesh(mesh,name)}catch(err){console.warn(err);toast('Import failed')}};
+ if(ext==='obj')reader.readAsText(file);else reader.readAsArrayBuffer(file)}
 
 /* ---------- operations with live adjust panel ---------- */
 const OPS={
@@ -1020,14 +1145,14 @@ function ui(){$('appName').textContent=APP.name;document.querySelectorAll('#mode
  $('sidebar').style.top=S.mode==='edit'?'calc(240px + var(--top))':S.mode==='sculpt'?'calc(128px + var(--top))':'calc(182px + var(--top))';syncPropPanel();syncSculptPanel();
  $('undo').disabled=!(H.u.length||(S.mode==='sculpt'&&SC.undo.length));$('redo').disabled=!(H.r.length||(S.mode==='sculpt'&&SC.redo.length));
  const r=$('rail');r.innerHTML='';const tool=t=>()=>{S.tool=t;ui();draw()};
- if(S.mode==='sculpt'){r.append(btn('ball','Ball','add',()=>addClayBall()),btn('convert','Convert','subd',()=>convertToSculpt()));r.append(Object.assign(document.createElement('i'),{className:'sep'}));
+ if(S.mode==='sculpt'){r.append(btn('ball','Ball','add',()=>addClayBall()),btn('convert','Convert','subd',()=>convertToSculpt()),btn('smoothsub','Subdiv','loop',()=>smoothSubdivide()));r.append(Object.assign(document.createElement('i'),{className:'sep'}));
   SC_BRUSHES.forEach(b=>r.append(btn(b.id,b.label,b.icon,()=>setSculptBrush(b.id),SC.brush===b.id?'on':'')))}
  else{['select','move','rotate','scale'].forEach(t=>r.append(btn(t,t[0].toUpperCase()+t.slice(1),t,tool(t),S.tool===t?'on':'')));r.append(Object.assign(document.createElement('i'),{className:'sep'}));
   if(S.mode==='object'){r.append(btn('add','Add','add',()=>sheet('add')),btn('dup','Duplicate','dup',dupObjects),btn('del','Delete','del',delObjects))}
   else{r.append(btn('extrude','Extrude','extrude',()=>runOp('extrude')),btn('inset','Inset','inset',()=>runOp('inset')),btn('bevel','Bevel','bevel',()=>runOp('bevel')),
    btn('loop','Loop Cut','loop',()=>{S.tool=S.tool==='loop'?'select':'loop';ui();if(S.tool==='loop')toast('Tap an edge — the cut runs across it')},S.tool==='loop'?'on':''),btn('subd','Subdivide','subd',()=>runOp('subd')),btn('merge','Merge','merge',()=>runOp('merge')),btn('del','Delete','del',()=>runOp('del')))}}
  const o=act();let st='';if(o){const ln=activeLayer().name;
-  if(S.mode==='sculpt'){const br=SC_BRUSHES.find(b=>b.id===SC.brush);st=`Sculpt · ${o.kind==='sculpt'?o.name:'no clay'} · ${br?br.label:''}${o.kind==='sculpt'?' · '+o.mesh.verts.length+' verts':''}${SC.mirror?' · mirror X':''}`}
+  if(S.mode==='sculpt'){const br=SC_BRUSHES.find(b=>b.id===SC.brush);st=`Sculpt · ${o.name} · ${br?br.label:''} · ${o.mesh.verts.length} verts${SC.mirror?' · mirror X':''}${SC.detail?' · detail':''}`}
   else if(o.mesh.verts.length>2500)st=`${o.name} · ${ln} · ${o.mesh.verts.length} verts · ${o.mesh.faces.length} faces`;
   else{const c=M.check(o.mesh);st=S.mode==='edit'?`${o.name} · ${ln} · V ${selVerts().size}/${c.verts} · E ${c.edges} · F ${S.fs.size}/${c.faces}${c.closed?'':c.manifold?' · open':' · non-manifold'}`:`${S.objs.length} object${S.objs.length===1?'':'s'} · ${S.osel.size} selected · ${ln}`;if(st)st+=' · '+(S.orient==='global'?'GLB':S.orient==='local'?'LOC':'NRM')+(S.prop&&S.mode==='edit'?' · PROP':'')}}
  $('status').textContent=st;if($('layerWrap')&&!$('layerWrap').hidden){try{renderLayers()}catch(err){console.warn(err)}}}
@@ -1041,7 +1166,7 @@ function sheet(kind){const s=$('sheet');s.innerHTML='';const h=t=>{const e=docum
  const prims=mk.bind(null,'grid',[['p-cube','Cube',()=>addPrim('cube')],['p-plane','Plane',()=>addPrim('plane')],['p-cylinder','Cylinder',()=>addPrim('cylinder')],['p-sphere','Sphere',()=>addPrim('sphere')]]);
  const clayRow=()=>{h('SCULPT');mk('list',[['p-clay','Clay ball',()=>{closeSheet();enterSculpt(true);addClayBall()},'sculpt']])};
  if(kind==='add'){h('ADD MESH');prims();clayRow()}
- else{h('ADD MESH');prims();clayRow();h('PROJECT');mk('list',[['m-save','Save to library',saveLib],['m-lib','Open library…',()=>sheet('lib'),libList().length+' saved'],['m-gal','Gallery…',()=>{closeSheet();galOpen()}],['m-new','New scene',()=>{closeSheet();newScene()}],['m-obj','Export OBJ',exportOBJ,'visible'],['m-tl','Timelapse',()=>{closeSheet();openTL()},TLF.length+' steps'],['m-tlclear','Clear timelapse history',()=>{tlClear();closeSheet()}],['m-name','Rename app title',()=>{const n=prompt('App title',APP.name);if(n){APP.name=n.slice(0,24);localStorage.setItem('bf-name',APP.name);document.title=APP.name;ui()}},APP.name]]);
+ else{h('ADD MESH');prims();clayRow();h('PROJECT');mk('list',[['m-save','Save to library',saveLib],['m-lib','Open library…',()=>sheet('lib'),libList().length+' saved'],['m-gal','Gallery…',()=>{closeSheet();galOpen()}],['m-new','New scene',()=>{closeSheet();newScene()}],['m-obj','Export OBJ',exportOBJ,'visible'],['m-imp','Import mesh…',()=>{closeSheet();pickImport()},'OBJ STL GLB'],['m-tl','Timelapse',()=>{closeSheet();openTL()},TLF.length+' steps'],['m-tlclear','Clear timelapse history',()=>{tlClear();closeSheet()}],['m-name','Rename app title',()=>{const n=prompt('App title',APP.name);if(n){APP.name=n.slice(0,24);localStorage.setItem('bf-name',APP.name);document.title=APP.name;ui()}},APP.name]]);
   h('VIEW');mk('list',[['v-front','Front',()=>{snapView(new THREE.Vector3(0,-1,0));closeSheet()}],['v-top','Top',()=>{snapView(new THREE.Vector3(0,0,1));closeSheet()}],['v-persp','Reset perspective',()=>{orbit.th=-Math.PI/2+.75;orbit.ph=.5;frame();closeSheet()}]])}
  if(kind==='lib'){s.innerHTML='';h('LIBRARY');const L=libList();if(!L.length){const p=document.createElement('p');p.style.cssText='color:var(--muted);font-size:13px;padding:6px';p.textContent='Nothing saved yet.';s.append(p)}
   mk('list',L.map((it,i)=>['lib-'+i,it.name,()=>{closeSheet();openSavedFile(it);frame();toast('Opened '+(it.name||'project'))},new Date(it.date).toLocaleDateString()]));const nt=document.createElement('div');nt.id='libNote';nt.className='libnote';nt.innerHTML=storageNote();s.querySelector('h2').after(nt)}
